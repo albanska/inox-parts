@@ -1,0 +1,79 @@
+.loader {
+ display: flex;
+ justify-content: center;
+ align-items: center;
+ background: #e8e8e8;
+ position: absolute;
+ inset: 0;
+ z-index: 100;
+}
+
+.circleLoader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circle {
+  position: absolute;
+  border: 3.5px solid transparent;
+  border-radius: 50%;
+  animation: rotate 3s infinite ease-in-out;
+}
+
+
+.circle1 {
+  width: 250px;
+  height: 250px;
+  border-top-color: #29a7df;
+  border-right-color: #29a7df;
+  animation-delay: -0.15s;
+}
+
+.circle2 {
+  width: 200px;
+  height: 200px;
+  border-top-color: #a8a9ac;
+  border-right-color: #a8a9ac;
+  animation-delay: -0.3s;
+}
+
+.circle3 {
+  width: 150px;
+  height: 150px;
+  border-top-color: #29a7df;
+  border-right-color: #29a7df;
+  animation-delay: -0.45s;
+}
+
+.circle4 {
+  width: 100px;
+  height: 100px;
+  border-top-color: #a8a9ac;
+  border-right-color: #a8a9ac;
+  animation-delay: -0.6s;
+}
+
+@keyframes rotate {
+  50% {
+    transform: rotate(360deg);
+  }
+}
+
+.timerText {
+  position: absolute;
+  font-size: 12px;
+  color: #29a7df;
+  opacity: 0.8;
+  scale: 1;
+  font-weight: bold;
+  text-transform: uppercase;
+  animation: timer 1.5s infinite ease-in-out;
+}
+
+@keyframes timer {
+  50% {
+    opacity: 0.3;
+    scale: 1.1;
+  }
+}
