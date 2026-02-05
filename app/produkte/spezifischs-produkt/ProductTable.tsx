@@ -36,17 +36,13 @@ function pickRowsDeep(root: any): any[] {
     }
 
     if (typeof node !== "object") return;
-
     if (visited.has(node)) return;
     visited.add(node);
 
-    for (const k of Object.keys(node)) {
-      walk((node as any)[k]);
-    }
+    for (const k of Object.keys(node)) walk(node[k]);
   }
 
   walk(root);
-
   candidates.sort((a, b) => b.length - a.length);
   return candidates[0] || [];
 }
@@ -63,7 +59,7 @@ export default function ProductTable({ product }: { product: any }) {
   const rows = pickRowsDeep(product);
 
   return (
-    <div className="mt-6 w-full bg-white">
+    <div className="w-full bg-white">
       {!rows || rows.length === 0 ? (
         <div className="p-6 text-sm text-gray-500">
           No variants found. (Rows not detected in product object)
@@ -72,6 +68,7 @@ export default function ProductTable({ product }: { product: any }) {
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full border-collapse">
             <thead>
+              {/* Header row 1 – DE */}
               <tr className="bg-[#1f86d6] text-white">
                 <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
@@ -82,6 +79,7 @@ export default function ProductTable({ product }: { product: any }) {
                 </th>
               </tr>
 
+              {/* Header row 2 – FR */}
               <tr className="bg-[#4aa6e6] text-white">
                 <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
                 <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
