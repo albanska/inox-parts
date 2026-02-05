@@ -28,6 +28,7 @@ export default function Page() {
       const res = await getSpecificProduct(id as string);
       setProduct(res);
 
+      // keep hash in sync
       if (typeof window !== "undefined") {
         window.location.hash = id as string;
       }
@@ -64,6 +65,7 @@ export default function Page() {
             <button
               onClick={() => handleProductIdChange("left")}
               className="h-28 w-8 flex justify-center items-center hover:-translate-x-0.5 transition-all"
+              aria-label="Previous product"
             >
               <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -87,6 +89,7 @@ export default function Page() {
             <button
               onClick={() => handleProductIdChange("right")}
               className="h-28 w-8 flex justify-center items-center hover:translate-x-0.5 transition-all"
+              aria-label="Next product"
             >
               <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -104,7 +107,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* Desktop header */}
+        {/* Desktop header like PDF */}
         <div className="hidden md:block bg-white">
           <ProductInfo
             product={product.product}
@@ -115,7 +118,7 @@ export default function Page() {
           />
         </div>
 
-        {/* Table full width */}
+        {/* Table full width under header */}
         <div className="mt-6">
           <ProductTable product={product.product} />
         </div>
