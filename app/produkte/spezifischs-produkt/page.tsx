@@ -3,65 +3,47 @@
 import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
-import ProductInfoMobile from "@/app/components/specific-product/ProductInfoMobile";
-import ProductInfo from "@/app/components/specific-product/ProductInfo";
-import ProductTable from "@/app/components/specific-product/ProductTable";
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
+import ProductTable from "@/app/components/specific-product/ProductTable";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
-// ---------------- VARIANT ROW FINDER (same logic as ProductTable) ----------------
-const ID_KEYS = ["id", "Id", "artNr", "art_nr", "article", "articleNumber"];
-const LEN_KEYS = ["length", "laenge", "Länge", "Lange", "lengthMm", "l"];
-const WID_KEYS = ["width", "breite", "Breite", "widthMm", "b"];
-const HEI_KEYS = ["height", "hoehe", "Höhe", "heightMm", "h"];
-const PRI_KEYS = ["price", "preis", "Price", "netto", "netPrice"];
-
-function hasAnyKey(obj: any, keys: string[]) {
-  if (!obj || typeof obj !== "object") return false;
-  return keys.some((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== "");
-}
-
-function isRowCandidate(x: any) {
-  if (!x || typeof x !== "object") return false;
-  const hasId = hasAnyKey(x, ID_KEYS);
-  const hasDim = hasAnyKey(x, LEN_KEYS) || hasAnyKey(x, WID_KEYS) || hasAnyKey(x, HEI_KEYS);
-  const hasPrice = hasAnyKey(x, PRI_KEYS);
-  return hasId && (hasDim || hasPrice);
-}
-
-function pickRowsDeep(root: any): any[] {
-  const visited = new WeakSet<object>();
-  const candidates: any[][] = [];
-
-  function walk(node: any) {
-    if (!node) return;
-
-    if (Array.isArray(node)) {
-      const good = node.filter(isRowCandidate);
-      if (good.length >= 1) candidates.push(good);
-      for (const item of node) walk(item);
-      return;
-    }
-
-    if (typeof node !== "object") return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    for (const k of Object.keys(node)) walk(node[k]);
-  }
-
-  walk(root);
-  candidates.sort((a, b) => b.length - a.length);
-  return candidates[0] || [];
-}
-
-function getVal(row: any, keys: string[], fallback: any = "-") {
+function getStr(obj: any, keys: string[], fallback = "") {
   for (const k of keys) {
-    const v = row?.[k];
-    if (v !== undefined && v !== null && v !== "") return v;
+    const v = obj?.[k];
+    if (v !== undefined && v !== null && String(v).trim() !== "") return String(v);
   }
   return fallback;
+}
+
+function getImg(obj: any) {
+  // provo disa field-e të zakonshme
+  const direct = getStr(obj, [
+    "image",
+    "img",
+    "imageUrl",
+    "imageURL",
+    "image_url",
+    "photo",
+    "photoUrl",
+    "thumbnail",
+    "thumb",
+    "src",
+    "url",
+  ]);
+
+  if (direct) return direct;
+
+  // ndonjëherë është objekt
+  const nested =
+    obj?.image?.src ||
+    obj?.image?.url ||
+    obj?.img?.src ||
+    obj?.img?.url ||
+    obj?.photo?.src ||
+    obj?.photo?.url;
+
+  return nested || "";
 }
 
 function formatTitle(name: any) {
@@ -69,71 +51,6 @@ function formatTitle(name: any) {
     .replace(/-/g, " ")
     .trim()
     .toUpperCase();
-}
-
-// ---------------- UI: horizontal variant strip ----------------
-function HorizontalVariants({ product }: { product: any }) {
-  const rows = pickRowsDeep(product);
-
-  if (!rows || rows.length === 0) return null;
-
-  return (
-    <div className="w-full bg-white mt-4">
-      <div className="px-4 md:px-0 pt-4">
-        <div className="text-xs text-gray-500">Varianten</div>
-      </div>
-
-      <div className="mt-2 overflow-x-auto">
-        <div className="flex gap-4 px-4 md:px-0 pb-4 snap-x snap-mandatory">
-          {rows.map((row: any, idx: number) => {
-            const id = getVal(row, ID_KEYS);
-            const l = getVal(row, LEN_KEYS, "");
-            const b = getVal(row, WID_KEYS, "");
-            const h = getVal(row, HEI_KEYS, "");
-            const price = getVal(row, PRI_KEYS, "");
-
-            return (
-              <div
-                key={`${id}-${idx}`}
-                className="min-w-[260px] max-w-[260px] bg-[#f5f5f5] border border-gray-200 rounded-lg p-4 snap-start"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-500">ID</div>
-                  <div className="text-sm font-semibold text-gray-800">{id}</div>
-                </div>
-
-                <div className="mt-3 space-y-2 text-sm">
-                  {l !== "" && (
-                    <div className="flex justify-between border-b border-dashed border-[#1f86d6] pb-2">
-                      <span className="text-gray-600">L</span>
-                      <span className="font-medium text-gray-800">{l} mm</span>
-                    </div>
-                  )}
-                  {b !== "" && (
-                    <div className="flex justify-between border-b border-dashed border-[#1f86d6] pb-2">
-                      <span className="text-gray-600">B</span>
-                      <span className="font-medium text-gray-800">{b} mm</span>
-                    </div>
-                  )}
-                  {h !== "" && (
-                    <div className="flex justify-between border-b border-dashed border-[#1f86d6] pb-2">
-                      <span className="text-gray-600">H</span>
-                      <span className="font-medium text-gray-800">{h} mm</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between pt-1">
-                    <span className="text-gray-600">CHF</span>
-                    <span className="font-semibold text-gray-900">{price}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function Page() {
@@ -152,7 +69,6 @@ export default function Page() {
       try {
         const res = await getSpecificProduct(id as string);
         setResp(res);
-
         if (typeof window !== "undefined") window.location.hash = id as string;
       } catch (e) {
         setResp({ status: "500", error: String(e) });
@@ -177,6 +93,11 @@ export default function Page() {
     );
   }
 
+  const title = formatTitle(getStr(product, ["name", "title"], "PRODUCT"));
+  const subtitle = getStr(product, ["description", "subTitle", "subtitle"], "");
+  const info = getStr(product, ["info", "material", "thickness"], "");
+  const imgSrc = getImg(product);
+
   function handleProductIdChange(direction: "left" | "right") {
     if (direction === "right") {
       const id = nextProduct?.id;
@@ -188,32 +109,15 @@ export default function Page() {
   }
 
   return (
-    <div className="w-full min-h-dvh lg:mb-10 relative">
-      <div className="relative w-full max-w-[1200px] mx-auto px-4 md:px-10 pt-6">
-        {/* ✅ TITLE ON TOP */}
-        <div className="bg-white p-4 md:p-6">
-          <h1 className="text-3xl md:text-4xl font-bold text-[#2d3142]">
-            {formatTitle(product?.name)}
-          </h1>
-          {product?.description && (
-            <div className="text-sm text-gray-500 mt-1 uppercase">
-              {String(product.description)}
-            </div>
-          )}
-
-          {product?.info && (
-            <div className="mt-3 text-sm font-medium text-gray-700 border-b-2 border-[#1f86d6] inline-block">
-              {String(product.info)}
-            </div>
-          )}
-        </div>
-
-        {/* Arrows (desktop) */}
+    <div className="w-full min-h-dvh relative">
+      <div className="relative w-full max-w-[1200px] mx-auto px-4 md:px-10 py-6">
+        {/* Arrows */}
         {!!prevProduct?.id && (
-          <div className="hidden md:block absolute top-28 -left-6 lg:-left-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl group bg-white">
+          <div className="hidden md:block absolute top-24 -left-6 lg:-left-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
             <button
               onClick={() => handleProductIdChange("left")}
               className="h-28 w-8 flex justify-center items-center hover:-translate-x-0.5 transition-all"
+              aria-label="Previous product"
             >
               <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -221,33 +125,65 @@ export default function Page() {
         )}
 
         {!!nextProduct?.id && (
-          <div className="hidden md:block absolute top-28 -right-6 lg:-right-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl group bg-white">
+          <div className="hidden md:block absolute top-24 -right-6 lg:-right-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
             <button
               onClick={() => handleProductIdChange("right")}
               className="h-28 w-8 flex justify-center items-center hover:translate-x-0.5 transition-all"
+              aria-label="Next product"
             >
               <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
             </button>
           </div>
         )}
 
-        {/* Keep your existing product image/info components (safe) */}
-        <ProductInfoMobile product={product} />
-        <div className="hidden md:block bg-white">
-          <ProductInfo
-            product={product}
-            handleProductIdChange={(dir: string) =>
-              handleProductIdChange(dir === "right" ? "right" : "left")
-            }
-            leftId={prevProduct?.id ?? null}
-          />
+        {/* ✅ PDF HEADER BLOCK */}
+        <div className="bg-white p-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6 items-start">
+            {/* LEFT TEXT */}
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-[#2d3142]">
+                {title}
+              </h1>
+
+              {subtitle ? (
+                <div className="mt-1 text-sm text-gray-500 uppercase">
+                  {subtitle}
+                </div>
+              ) : null}
+
+              {info ? (
+                <div className="mt-4 text-sm font-medium text-gray-700 border-b-2 border-[#1f86d6] inline-block pb-1">
+                  {info}
+                </div>
+              ) : (
+                <div className="mt-4 border-b-2 border-[#1f86d6] w-[140px]" />
+              )}
+            </div>
+
+            {/* RIGHT IMAGE (small like PDF) */}
+            <div className="w-full">
+              <div className="w-full bg-white border border-gray-200">
+                {imgSrc ? (
+                  <img
+                    src={imgSrc}
+                    alt={title}
+                    className="w-full h-[220px] object-contain p-2"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="w-full h-[220px] flex items-center justify-center text-sm text-gray-400">
+                    No image
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* ✅ VARIANTS HORIZONTAL */}
-        <HorizontalVariants product={product} />
-
-        {/* ✅ TABLE (PDF style) */}
-        <ProductTable product={product} />
+        {/* ✅ PDF TABLE (only this, no vertical cards) */}
+        <div className="bg-white mt-6">
+          <ProductTable product={product} />
+        </div>
       </div>
     </div>
   );
