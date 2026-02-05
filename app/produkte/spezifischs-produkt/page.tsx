@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import ProductInfoMobile from "@/app/components/specific-product/ProductInfoMobile";
@@ -57,10 +57,10 @@ export default function Page() {
     run();
   }, [productId]);
 
+  // ✅ Early returns are fine, as long as we don't call extra hooks later
   if (resp === null) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
-  // If API response shape is unexpected, don't crash the app
   const product = resp?.product ?? null;
   const prevProduct = resp?.prevProduct ?? null;
   const nextProduct = resp?.nextProduct ?? null;
@@ -72,6 +72,8 @@ export default function Page() {
       </div>
     );
   }
+
+  const rows = pickRows(product);
 
   const formatName = (name: string) =>
     String(name || "")
@@ -92,8 +94,6 @@ export default function Page() {
       if (id) setProductId(id);
     }
   }
-
-  const rows = useMemo(() => pickRows(product), [product]);
 
   return (
     <div className="w-full min-h-dvh lg:mb-10 relative">
@@ -171,7 +171,6 @@ export default function Page() {
             <div className="overflow-x-auto">
               <table className="min-w-[860px] w-full border-collapse">
                 <thead>
-                  {/* Header row 1 (DE) */}
                   <tr className="bg-[#1f86d6] text-white">
                     <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
                     <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
@@ -182,7 +181,6 @@ export default function Page() {
                     </th>
                   </tr>
 
-                  {/* Header row 2 (FR) */}
                   <tr className="bg-[#4aa6e6] text-white">
                     <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
                     <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
