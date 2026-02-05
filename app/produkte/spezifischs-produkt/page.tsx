@@ -9,15 +9,58 @@ import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
-function pickRows(product: any) {
-  return (
-    product?.items ||
-    product?.variants ||
-    product?.rows ||
-    product?.products ||
-    product?.data ||
-    []
-  );
+// ---- helpers to find variants deep inside product ----
+const ID_KEYS = ["id", "Id", "artNr", "art_nr", "article", "articleNumber"];
+const LEN_KEYS = ["length", "laenge", "Länge", "Lange", "lengthMm", "l"];
+const WID_KEYS = ["width", "breite", "Breite", "widthMm", "b"];
+const HEI_KEYS = ["height", "hoehe", "Höhe", "heightMm", "h"];
+const PRI_KEYS = ["price", "preis", "Price", "netto", "netPrice"];
+
+function hasAnyKey(obj: any, keys: string[]) {
+  if (!obj || typeof obj !== "object") return false;
+  return keys.some((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== "");
+}
+
+function isRowCandidate(x: any) {
+  if (!x || typeof x !== "object") return false;
+  const hasId = hasAnyKey(x, ID_KEYS);
+  const hasDim = hasAnyKey(x, LEN_KEYS) || hasAnyKey(x, WID_KEYS) || hasAnyKey(x, HEI_KEYS);
+  const hasPrice = hasAnyKey(x, PRI_KEYS);
+  // Usually a row has id + at least one dimension OR price
+  return hasId && (hasDim || hasPrice);
+}
+
+function pickRowsDeep(root: any): any[] {
+  const visited = new WeakSet<object>();
+  const candidates: any[][] = [];
+
+  function walk(node: any) {
+    if (!node) return;
+
+    // arrays: if they look like rows, store
+    if (Array.isArray(node)) {
+      const good = node.filter(isRowCandidate);
+      if (good.length >= 1) candidates.push(good);
+      // still walk inside (sometimes arrays contain nested objects)
+      for (const item of node) walk(item);
+      return;
+    }
+
+    if (typeof node !== "object") return;
+
+    if (visited.has(node)) return;
+    visited.add(node);
+
+    for (const k of Object.keys(node)) {
+      walk(node[k]);
+    }
+  }
+
+  walk(root);
+
+  // return the longest candidate list
+  candidates.sort((a, b) => b.length - a.length);
+  return candidates[0] || [];
 }
 
 function getVal(row: any, keys: string[], fallback: any = "-") {
@@ -57,7 +100,6 @@ export default function Page() {
     run();
   }, [productId]);
 
-  // ✅ Early returns are fine, as long as we don't call extra hooks later
   if (resp === null) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
@@ -73,7 +115,8 @@ export default function Page() {
     );
   }
 
-  const rows = pickRows(product);
+  // ✅ this is the key: find variants anywhere inside product object
+  const rows = pickRowsDeep(product);
 
   const formatName = (name: string) =>
     String(name || "")
@@ -81,7 +124,7 @@ export default function Page() {
       .toLowerCase()
       .split(" ")
       .filter(Boolean)
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
       .join(" ");
 
   function handleProductIdChange(direction: "left" | "right") {
@@ -116,9 +159,7 @@ export default function Page() {
               <div className="bg-gray-100 text-xs text-center px-4 py-2">
                 <h2 className="font-semibold text-[#9a8c98]">
                   {prevProduct?.count ?? ""}.{" "}
-                  <span className="text-wrap">
-                    {formatName(prevProduct?.name)}
-                  </span>
+                  <span className="text-wrap">{formatName(prevProduct?.name)}</span>
                 </h2>
               </div>
             </div>
@@ -139,13 +180,8 @@ export default function Page() {
             <div className="absolute px-2 py-1 top-0 left-full ml-2 hidden group-hover:flex justify-center items-center h-full w-fit">
               <div className="bg-gray-100 text-xs text-center px-4 py-2">
                 <h2 className="font-semibold text-[#9a8c98]">
-                  {(typeof nextProduct?.count === "number"
-                    ? nextProduct.count + 2
-                    : "")}
-                  .{" "}
-                  <span className="text-wrap">
-                    {formatName(nextProduct?.name)}
-                  </span>
+                  {(typeof nextProduct?.count === "number" ? nextProduct.count + 2 : "")}.{" "}
+                  <span className="text-wrap">{formatName(nextProduct?.name)}</span>
                 </h2>
               </div>
             </div>
@@ -163,10 +199,12 @@ export default function Page() {
           />
         </div>
 
-        {/* TABLE (si PDF) */}
+        {/* TABLE (PDF style) */}
         <div className="mt-6 w-full bg-white">
           {!rows || rows.length === 0 ? (
-            <div className="p-6 text-sm text-gray-500">No variants found.</div>
+            <div className="p-6 text-sm text-gray-500">
+              No variants found. (Rows not detected in product object)
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="min-w-[860px] w-full border-collapse">
@@ -180,7 +218,6 @@ export default function Page() {
                       Netto Preis CHF / Meter
                     </th>
                   </tr>
-
                   <tr className="bg-[#4aa6e6] text-white">
                     <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
                     <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
@@ -192,11 +229,11 @@ export default function Page() {
 
                 <tbody>
                   {rows.map((row: any, idx: number) => {
-                    const id = getVal(row, ["id", "Id", "artNr", "art_nr", "article", "articleNumber"]);
-                    const length = getVal(row, ["length", "laenge", "Länge", "Lange", "lengthMm", "l"]);
-                    const width = getVal(row, ["width", "breite", "Breite", "widthMm", "b"]);
-                    const height = getVal(row, ["height", "hoehe", "Höhe", "heightMm", "h"]);
-                    const price = getVal(row, ["price", "preis", "Price", "netto", "netPrice"]);
+                    const id = getVal(row, ID_KEYS);
+                    const length = getVal(row, LEN_KEYS);
+                    const width = getVal(row, WID_KEYS);
+                    const height = getVal(row, HEI_KEYS);
+                    const price = getVal(row, PRI_KEYS);
 
                     const priceNum =
                       typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
