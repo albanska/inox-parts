@@ -30,7 +30,7 @@ function getVal(row: any, keys: string[], fallback: any = "-") {
 
 export default function Page() {
   const [productId, setProductId] = useState<string | null>(null);
-  const [product, setProduct] = useState<any>(null);
+  const [resp, setResp] = useState<any>(null);
 
   useEffect(() => {
     let id = productId;
@@ -42,43 +42,67 @@ export default function Page() {
     if (!id) return;
 
     async function run() {
-      const res = await getSpecificProduct(id as string);
-      setProduct(res);
+      try {
+        const res = await getSpecificProduct(id as string);
+        setResp(res);
 
-      if (typeof window !== "undefined") {
-        window.location.hash = id as string;
+        if (typeof window !== "undefined") {
+          window.location.hash = id as string;
+        }
+      } catch (e) {
+        setResp({ status: "500", error: String(e) });
       }
     }
 
     run();
   }, [productId]);
 
-  if (product === null) return <Loader />;
-  if (product?.status === "404") return <ErrorState errorStatus={product} />;
+  if (resp === null) return <Loader />;
+  if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
+
+  // If API response shape is unexpected, don't crash the app
+  const product = resp?.product ?? null;
+  const prevProduct = resp?.prevProduct ?? null;
+  const nextProduct = resp?.nextProduct ?? null;
+
+  if (!product) {
+    return (
+      <div className="p-6 text-red-600 font-bold">
+        Product data missing or invalid response.
+      </div>
+    );
+  }
 
   const formatName = (name: string) =>
-    name
+    String(name || "")
       .replace("-", " ")
       .toLowerCase()
       .split(" ")
+      .filter(Boolean)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
 
   function handleProductIdChange(direction: "left" | "right") {
-    if (direction === "right") setProductId(product?.nextProduct?.id);
-    if (direction === "left") setProductId(product?.prevProduct?.id);
+    if (direction === "right") {
+      const id = nextProduct?.id;
+      if (id) setProductId(id);
+    }
+    if (direction === "left") {
+      const id = prevProduct?.id;
+      if (id) setProductId(id);
+    }
   }
 
-  const rows = useMemo(() => pickRows(product?.product), [product]);
+  const rows = useMemo(() => pickRows(product), [product]);
 
   return (
     <div className="w-full min-h-dvh lg:mb-10 relative">
       {/* Mobile header */}
-      <ProductInfoMobile product={product.product} />
+      <ProductInfoMobile product={product} />
 
       <div className="relative w-full max-w-[1200px] mx-auto px-4 md:px-10 -mt-6 lg:mt-0">
         {/* Left Arrow */}
-        {product?.prevProduct?.id !== null && (
+        {!!prevProduct?.id && (
           <div className="hidden md:block absolute top-24 -left-6 lg:-left-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl group bg-white">
             <button
               onClick={() => handleProductIdChange("left")}
@@ -91,9 +115,9 @@ export default function Page() {
             <div className="absolute px-2 py-1 top-0 right-full mr-2 hidden group-hover:flex justify-center items-center h-full w-fit">
               <div className="bg-gray-100 text-xs text-center px-4 py-2">
                 <h2 className="font-semibold text-[#9a8c98]">
-                  {product.prevProduct.count}.{" "}
+                  {prevProduct?.count ?? ""}.{" "}
                   <span className="text-wrap">
-                    {formatName(product.prevProduct.name)}
+                    {formatName(prevProduct?.name)}
                   </span>
                 </h2>
               </div>
@@ -102,7 +126,7 @@ export default function Page() {
         )}
 
         {/* Right Arrow */}
-        {product?.nextProduct?.id !== null && (
+        {!!nextProduct?.id && (
           <div className="hidden md:block absolute top-24 -right-6 lg:-right-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl group bg-white">
             <button
               onClick={() => handleProductIdChange("right")}
@@ -115,9 +139,12 @@ export default function Page() {
             <div className="absolute px-2 py-1 top-0 left-full ml-2 hidden group-hover:flex justify-center items-center h-full w-fit">
               <div className="bg-gray-100 text-xs text-center px-4 py-2">
                 <h2 className="font-semibold text-[#9a8c98]">
-                  {product.nextProduct.count + 2}.{" "}
+                  {(typeof nextProduct?.count === "number"
+                    ? nextProduct.count + 2
+                    : "")}
+                  .{" "}
                   <span className="text-wrap">
-                    {formatName(product.nextProduct.name)}
+                    {formatName(nextProduct?.name)}
                   </span>
                 </h2>
               </div>
@@ -128,11 +155,11 @@ export default function Page() {
         {/* Desktop header */}
         <div className="hidden md:block bg-white">
           <ProductInfo
-            product={product.product}
+            product={product}
             handleProductIdChange={(dir: string) =>
               handleProductIdChange(dir === "right" ? "right" : "left")
             }
-            leftId={product?.prevProduct?.id}
+            leftId={prevProduct?.id ?? null}
           />
         </div>
 
