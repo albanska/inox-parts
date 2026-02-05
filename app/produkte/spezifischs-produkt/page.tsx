@@ -1,14 +1,32 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import ProductInfoMobile from "@/app/components/specific-product/ProductInfoMobile";
 import ProductInfo from "@/app/components/specific-product/ProductInfo";
-import ProductTable from "@/app/components/specific-product/ProductTable";
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
+
+function pickRows(product: any) {
+  return (
+    product?.items ||
+    product?.variants ||
+    product?.rows ||
+    product?.products ||
+    product?.data ||
+    []
+  );
+}
+
+function getVal(row: any, keys: string[], fallback: any = "-") {
+  for (const k of keys) {
+    const v = row?.[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+  return fallback;
+}
 
 export default function Page() {
   const [productId, setProductId] = useState<string | null>(null);
@@ -18,8 +36,7 @@ export default function Page() {
     let id = productId;
 
     if (!id && typeof window !== "undefined") {
-      const hash = window.location.hash.replace("#", "");
-      id = hash;
+      id = window.location.hash.replace("#", "");
     }
 
     if (!id) return;
@@ -28,7 +45,6 @@ export default function Page() {
       const res = await getSpecificProduct(id as string);
       setProduct(res);
 
-      // keep hash in sync
       if (typeof window !== "undefined") {
         window.location.hash = id as string;
       }
@@ -52,6 +68,8 @@ export default function Page() {
     if (direction === "right") setProductId(product?.nextProduct?.id);
     if (direction === "left") setProductId(product?.prevProduct?.id);
   }
+
+  const rows = useMemo(() => pickRows(product?.product), [product]);
 
   return (
     <div className="w-full min-h-dvh lg:mb-10 relative">
@@ -107,7 +125,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* Desktop header like PDF */}
+        {/* Desktop header */}
         <div className="hidden md:block bg-white">
           <ProductInfo
             product={product.product}
@@ -118,9 +136,62 @@ export default function Page() {
           />
         </div>
 
-        {/* Table full width under header */}
-        <div className="mt-6">
-          <ProductTable product={product.product} />
+        {/* TABLE (si PDF) */}
+        <div className="mt-6 w-full bg-white">
+          {!rows || rows.length === 0 ? (
+            <div className="p-6 text-sm text-gray-500">No variants found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-[860px] w-full border-collapse">
+                <thead>
+                  {/* Header row 1 (DE) */}
+                  <tr className="bg-[#1f86d6] text-white">
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Breite mm</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">Höhe mm</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">
+                      Netto Preis CHF / Meter
+                    </th>
+                  </tr>
+
+                  {/* Header row 2 (FR) */}
+                  <tr className="bg-[#4aa6e6] text-white">
+                    <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium">Prix net CHF / mètre</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {rows.map((row: any, idx: number) => {
+                    const id = getVal(row, ["id", "Id", "artNr", "art_nr", "article", "articleNumber"]);
+                    const length = getVal(row, ["length", "laenge", "Länge", "Lange", "lengthMm", "l"]);
+                    const width = getVal(row, ["width", "breite", "Breite", "widthMm", "b"]);
+                    const height = getVal(row, ["height", "hoehe", "Höhe", "heightMm", "h"]);
+                    const price = getVal(row, ["price", "preis", "Price", "netto", "netPrice"]);
+
+                    const priceNum =
+                      typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
+
+                    return (
+                      <tr key={`${id}-${idx}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                        <td className="px-4 py-2 text-sm">{id}</td>
+                        <td className="px-4 py-2 text-sm">{length}</td>
+                        <td className="px-4 py-2 text-sm">{width}</td>
+                        <td className="px-4 py-2 text-sm">{height}</td>
+                        <td className="px-4 py-2 text-sm">
+                          {Number.isFinite(priceNum) ? priceNum.toFixed(2) : price}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
