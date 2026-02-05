@@ -1,8 +1,9 @@
 "use client";
+
 import React from "react";
 
 function pickRows(product: any) {
-  // provo disa emra të mundshëm, se s’e di strukturën 100%
+  // Këtu mund të adaptohet nëse struktura jote është ndryshe
   return (
     product?.items ||
     product?.variants ||
@@ -34,15 +35,29 @@ export default function ProductTable({ product }: { product: any }) {
 
   return (
     <div className="w-full bg-white">
-      <div className="w-full overflow-x-auto">
+      <div className="overflow-x-auto">
         <table className="min-w-[860px] w-full border-collapse">
           <thead>
+            {/* Header row 1 (DE) */}
             <tr className="bg-[#1f86d6] text-white">
               <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Breite mm</th>
               <th className="px-4 py-3 text-left text-sm font-semibold">Höhe mm</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Netto Preis CHF / Meter</th>
+              <th className="px-4 py-3 text-left text-sm font-semibold">
+                Netto Preis CHF / Meter
+              </th>
+            </tr>
+
+            {/* Header row 2 (FR) */}
+            <tr className="bg-[#4aa6e6] text-white">
+              <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
+              <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
+              <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
+              <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
+              <th className="px-4 py-2 text-left text-xs font-medium">
+                Prix net CHF / mètre
+              </th>
             </tr>
           </thead>
 
@@ -54,15 +69,16 @@ export default function ProductTable({ product }: { product: any }) {
               const height = getVal(row, ["height", "hoehe", "Höhe", "heightMm", "h"]);
               const price = getVal(row, ["price", "preis", "Price", "netto", "netPrice"]);
 
-              const priceNum = typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
+              const priceNum =
+                typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
 
               return (
                 <tr key={`${id}-${idx}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                  <td className="px-4 py-3 text-sm">{id}</td>
-                  <td className="px-4 py-3 text-sm">{length}</td>
-                  <td className="px-4 py-3 text-sm">{width}</td>
-                  <td className="px-4 py-3 text-sm">{height}</td>
-                  <td className="px-4 py-3 text-sm">
+                  <td className="px-4 py-2 text-sm">{id}</td>
+                  <td className="px-4 py-2 text-sm">{length}</td>
+                  <td className="px-4 py-2 text-sm">{width}</td>
+                  <td className="px-4 py-2 text-sm">{height}</td>
+                  <td className="px-4 py-2 text-sm">
                     {Number.isFinite(priceNum) ? priceNum.toFixed(2) : price}
                   </td>
                 </tr>
