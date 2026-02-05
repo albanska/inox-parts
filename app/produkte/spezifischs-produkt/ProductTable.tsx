@@ -2,15 +2,53 @@
 
 import React from "react";
 
-function pickRows(product: any) {
-  return (
-    product?.items ||
-    product?.variants ||
-    product?.rows ||
-    product?.products ||
-    product?.data ||
-    []
-  );
+const ID_KEYS = ["id", "Id", "artNr", "art_nr", "article", "articleNumber"];
+const LEN_KEYS = ["length", "laenge", "Länge", "Lange", "lengthMm", "l"];
+const WID_KEYS = ["width", "breite", "Breite", "widthMm", "b"];
+const HEI_KEYS = ["height", "hoehe", "Höhe", "heightMm", "h"];
+const PRI_KEYS = ["price", "preis", "Price", "netto", "netPrice"];
+
+function hasAnyKey(obj: any, keys: string[]) {
+  if (!obj || typeof obj !== "object") return false;
+  return keys.some((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== "");
+}
+
+function isRowCandidate(x: any) {
+  if (!x || typeof x !== "object") return false;
+  const hasId = hasAnyKey(x, ID_KEYS);
+  const hasDim = hasAnyKey(x, LEN_KEYS) || hasAnyKey(x, WID_KEYS) || hasAnyKey(x, HEI_KEYS);
+  const hasPrice = hasAnyKey(x, PRI_KEYS);
+  return hasId && (hasDim || hasPrice);
+}
+
+function pickRowsDeep(root: any): any[] {
+  const visited = new WeakSet<object>();
+  const candidates: any[][] = [];
+
+  function walk(node: any) {
+    if (!node) return;
+
+    if (Array.isArray(node)) {
+      const good = node.filter(isRowCandidate);
+      if (good.length >= 1) candidates.push(good);
+      for (const item of node) walk(item);
+      return;
+    }
+
+    if (typeof node !== "object") return;
+
+    if (visited.has(node)) return;
+    visited.add(node);
+
+    for (const k of Object.keys(node)) {
+      walk((node as any)[k]);
+    }
+  }
+
+  walk(root);
+
+  candidates.sort((a, b) => b.length - a.length);
+  return candidates[0] || [];
 }
 
 function getVal(row: any, keys: string[], fallback: any = "-") {
@@ -22,124 +60,56 @@ function getVal(row: any, keys: string[], fallback: any = "-") {
 }
 
 export default function ProductTable({ product }: { product: any }) {
-  const rows = pickRows(product);
+  const rows = pickRowsDeep(product);
 
   return (
-    <div className="w-full bg-white mt-6">
-      {/* 🔴 TEST BANNER – duhet të shihet patjetër */}
-      <div className="p-6 bg-red-500 text-white font-bold text-xl">
-        NEW TABLE VERSION LOADED
-      </div>
-
-      {(!rows || rows.length === 0) && (
+    <div className="mt-6 w-full bg-white">
+      {!rows || rows.length === 0 ? (
         <div className="p-6 text-sm text-gray-500">
-          No variants found.
+          No variants found. (Rows not detected in product object)
         </div>
-      )}
-
-      {rows && rows.length > 0 && (
+      ) : (
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full border-collapse">
             <thead>
-              {/* Header row 1 – DE */}
               <tr className="bg-[#1f86d6] text-white">
-                <th className="px-4 py-3 text-left text-sm font-semibold">
-                  Art.-Nr.
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">
-                  Länge mm
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">
-                  Breite mm
-                </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold">
-                  Höhe mm
-                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Breite mm</th>
+                <th className="px-4 py-3 text-left text-sm font-semibold">Höhe mm</th>
                 <th className="px-4 py-3 text-left text-sm font-semibold">
                   Netto Preis CHF / Meter
                 </th>
               </tr>
 
-              {/* Header row 2 – FR */}
               <tr className="bg-[#4aa6e6] text-white">
-                <th className="px-4 py-2 text-left text-xs font-medium">
-                  N° d&apos;art
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium">
-                  Longueur mm
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium">
-                  Largeur mm
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium">
-                  Hauteur mm
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium">
-                  Prix net CHF / mètre
-                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
+                <th className="px-4 py-2 text-left text-xs font-medium">Prix net CHF / mètre</th>
               </tr>
             </thead>
 
             <tbody>
               {rows.map((row: any, idx: number) => {
-                const id = getVal(row, [
-                  "id",
-                  "Id",
-                  "artNr",
-                  "art_nr",
-                  "article",
-                  "articleNumber",
-                ]);
-
-                const length = getVal(row, [
-                  "length",
-                  "laenge",
-                  "Länge",
-                  "lengthMm",
-                  "l",
-                ]);
-
-                const width = getVal(row, [
-                  "width",
-                  "breite",
-                  "Breite",
-                  "widthMm",
-                  "b",
-                ]);
-
-                const height = getVal(row, [
-                  "height",
-                  "hoehe",
-                  "Höhe",
-                  "heightMm",
-                  "h",
-                ]);
-
-                const price = getVal(row, [
-                  "price",
-                  "preis",
-                  "netPrice",
-                  "netto",
-                ]);
+                const id = getVal(row, ID_KEYS);
+                const length = getVal(row, LEN_KEYS);
+                const width = getVal(row, WID_KEYS);
+                const height = getVal(row, HEI_KEYS);
+                const price = getVal(row, PRI_KEYS);
 
                 const priceNum =
-                  typeof price === "string"
-                    ? Number(price.replace(",", "."))
-                    : Number(price);
+                  typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
 
                 return (
-                  <tr
-                    key={`${id}-${idx}`}
-                    className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}
-                  >
+                  <tr key={`${id}-${idx}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
                     <td className="px-4 py-2 text-sm">{id}</td>
                     <td className="px-4 py-2 text-sm">{length}</td>
                     <td className="px-4 py-2 text-sm">{width}</td>
                     <td className="px-4 py-2 text-sm">{height}</td>
                     <td className="px-4 py-2 text-sm">
-                      {Number.isFinite(priceNum)
-                        ? priceNum.toFixed(2)
-                        : price}
+                      {Number.isFinite(priceNum) ? priceNum.toFixed(2) : price}
                     </td>
                   </tr>
                 );
