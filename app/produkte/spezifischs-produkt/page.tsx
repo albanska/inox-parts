@@ -7,6 +7,7 @@ import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import ProductTable from "@/app/components/specific-product/ProductTable";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
+import { transformProduct } from "@/helpers/transformProduct";
 
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
@@ -27,61 +28,16 @@ function normalizeUrl(src: string) {
   return `/${src}`;
 }
 
-function getImageSrc(product: any): string {
-  const candidates: any[] = [
-    product?.img,
-    product?.image,
-    product?.imageUrl,
-    product?.imageURL,
-    product?.image_url,
-    product?.photo,
-    product?.photoUrl,
-    product?.thumbnail,
-    product?.thumb,
-    product?.src,
-    product?.url,
-    product?.media?.url,
-    product?.media?.src,
-    product?.media?.[0]?.url,
-    product?.media?.[0]?.src,
-    product?.images?.[0],
-    product?.images?.[0]?.url,
-    product?.images?.[0]?.src,
-  ];
-
-  for (const c of candidates) {
-    if (!c) continue;
-    if (typeof c === "string") return normalizeUrl(c);
-    if (typeof c === "object") {
-      if (typeof c?.url === "string") return normalizeUrl(c.url);
-      if (typeof c?.src === "string") return normalizeUrl(c.src);
-    }
-  }
-
-  // last resort: regex search in JSON
-  try {
-    const s = JSON.stringify(product);
-    const m = s.match(
-      /(https?:\/\/[^"']+\.(png|jpg|jpeg|webp|gif|svg)|\/[^"']+\.(png|jpg|jpeg|webp|gif|svg))/i
-    );
-    if (m?.[1]) return normalizeUrl(m[1]);
-  } catch {}
-
-  return "";
-}
-
 export default function Page() {
   const [productId, setProductId] = useState<string>("");
   const [resp, setResp] = useState<any>(null);
 
-  // get id from hash
   useEffect(() => {
     const hashId = window.location.hash.replace("#", "");
     if (hashId) setProductId(hashId);
     else setResp({ status: "404", id: "" });
   }, []);
 
-  // fetch product
   useEffect(() => {
     if (!productId) return;
 
@@ -99,15 +55,17 @@ export default function Page() {
   if (!resp) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
-  const product = resp?.product || {};
+  // ✅ KËTU e bëjmë transform
+  const viewProduct = transformProduct(resp?.product || {});
+
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  // ✅ këto janë fushat nga admin: Name, Description, Info
-  const title = formatTitle(product?.name);
-  const subtitle = safeText(product?.subName || product?.description); // Description
-  const infoLine = safeText(product?.info); // Info
-  const imgSrc = getImageSrc(product);
+  const title = formatTitle(viewProduct?.name);
+  const subtitle = safeText(viewProduct?.description); // Description
+  const infoLine = safeText(viewProduct?.info); // Info
+
+  const imgSrc = normalizeUrl(safeText(viewProduct?.img));
 
   return (
     <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
@@ -183,9 +141,9 @@ export default function Page() {
           </div>
         </div>
 
-        {/* ✅ table under header */}
+        {/* ✅ tabela horizontale */}
         <div className="mt-8">
-          <ProductTable product={product} />
+          <ProductTable product={viewProduct} />
         </div>
       </div>
     </div>
