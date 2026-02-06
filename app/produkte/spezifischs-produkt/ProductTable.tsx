@@ -57,41 +57,58 @@ export default function ProductTable({ product }: { product: any }) {
     );
   }
 
+  // Transpose: rows become columns
+  const attributes = [
+    { deLabel: "Art.-Nr.", frLabel: "N° d'art", key: "productId" },
+    { deLabel: "Länge mm", frLabel: "Longueur mm", key: "lange" },
+    { deLabel: "Breite mm", frLabel: "Largeur mm", key: "breite" },
+    { deLabel: "Höhe mm", frLabel: "Hauteur mm", key: "hohe" },
+    { deLabel: `Netto Preis CHF / ${priceUnit || "Einheit"}`, frLabel: `Prix net CHF / ${priceUnit ? (priceUnit === "M" ? "mètre" : "pièce") : "unité"}`, key: "price" },
+  ];
+
   return (
     <div className="w-full bg-white border border-gray-200 overflow-x-auto">
-      <table className="w-full min-w-[860px] border-collapse text-sm">
+      <table className="border-collapse text-sm">
         <thead>
-          {/* Header row 1 (DE) */}
+          {/* Header row (Fixed column + Article numbers) */}
           <tr className="bg-[#1f86d6] text-white">
-            <th className="px-4 py-3 text-left font-semibold">Art.-Nr.</th>
-            <th className="px-4 py-3 text-left font-semibold">Länge mm</th>
-            <th className="px-4 py-3 text-left font-semibold">Breite mm</th>
-            <th className="px-4 py-3 text-left font-semibold">Höhe mm</th>
-            <th className="px-4 py-3 text-left font-semibold">
-              Netto Preis CHF / {priceUnit || "Einheit"}
-            </th>
+            {/* <th className="px-4 py-3 text-left font-semibold sticky left-0 bg-[#1f86d6] min-w-[140px]">Attribute</th> */}
+            {rows.map((r, i) => (
+              <th key={`header-${i}`} className="px-4 py-3 text-center font-semibold min-w-[120px]">
+                {r.productId || "-"}
+              </th>
+            ))}
           </tr>
-
-          {/* Header row 2 (FR) */}
+          
+          {/* Subheader row (FR translations) */}
           <tr className="bg-[#4aa6e6] text-white">
-            <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
-            <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
-            <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
-            <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
-            <th className="px-4 py-2 text-left text-xs font-medium">
-              Prix net CHF / {priceUnit ? (priceUnit === "M" ? "mètre" : "pièce") : "unité"}
-            </th>
+            <th className="px-4 py-2 text-left text-xs font-medium sticky left-0 bg-[#4aa6e6] min-w-[140px]">Attribut</th>
+            {rows.map((r, i) => (
+              <th key={`subheader-${i}`} className="px-4 py-2 text-center text-xs font-medium min-w-[120px]">
+                {r.productId || "-"}
+              </th>
+            ))}
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((r, i) => (
-            <tr key={`${r.productId || "row"}-${i}`} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-              <td className="px-4 py-3 font-medium text-[#2d3142]">{r.productId || "-"}</td>
-              <td className="px-4 py-3">{r.lange || "-"}</td>
-              <td className="px-4 py-3">{r.breite || "-"}</td>
-              <td className="px-4 py-3">{r.hohe || "-"}</td>
-              <td className="px-4 py-3 font-semibold">{toMoney(r.price)}</td>
+          {attributes.map((attr, attrIdx) => (
+            <tr key={`attr-${attrIdx}`} className={attrIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              <td className="px-4 py-3 font-medium text-[#2d3142] sticky left-0 bg-inherit min-w-[140px]">
+                <div>{attr.deLabel}</div>
+                <div className="text-xs text-gray-600">{attr.frLabel}</div>
+              </td>
+              {rows.map((r, rowIdx) => {
+                let value = r[attr.key as keyof Row] || "-";
+                if (attr.key === "price") {
+                  value = toMoney(value);
+                }
+                return (
+                  <td key={`cell-${attrIdx}-${rowIdx}`} className="px-4 py-3 text-center font-medium min-w-[120px]">
+                    {value}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
