@@ -1,40 +1,64 @@
 export function transformProduct(product) {
   const tagMap = {
-    'produkt nr.': 'productId',
-    'typ': 'typ',
-    'länge mm': 'lange',
-    'breite mm': 'breite',
-    'höhe mm': 'hohe',
+    "produkt nr.": "productId",
+    "produkt nr": "productId",
+    "art.-nr.": "productId",
+    "art.-nr": "productId",
+    "typ": "typ",
+    "länge mm": "lange",
+    "laenge mm": "lange",
+    "breite mm": "breite",
+    "höhe mm": "hohe",
+    "hoehe mm": "hohe",
   };
 
-  const priceOptionTag = product.tags.find(tag =>
-    tag.title.toLowerCase().includes('preis pro')
+  // ✅ SAFE: tags + ids always arrays
+  const tags = Array.isArray(product?.tags) ? product.tags : [];
+  const ids = Array.isArray(product?.ids) ? product.ids : [];
+
+  const priceOptionTag = tags.find((tag) =>
+    String(tag?.title || "").toLowerCase().includes("preis pro")
   );
 
-  const transformedIds = product.ids.map(idArray => {
+  const transformedIds = ids.map((idArray) => {
     const mapped = {};
 
-    product.tags.forEach((tag, idx) => {
-      const title = tag.title.toLowerCase();
+    tags.forEach((tag, idx) => {
+      const title = String(tag?.title || "").toLowerCase().trim();
       const key = tagMap[title];
 
-      if (title.startsWith('preis pro')) {
-        mapped['price'] = idArray[idx].replace(/[^\d.,]/g, '').trim();
+      const cell =
+        Array.isArray(idArray) && idx < idArray.length ? idArray[idx] : "";
+
+      if (title.startsWith("preis pro")) {
+        mapped["price"] = String(cell).replace(/[^\d.,]/g, "").trim();
       } else if (key) {
-        mapped[key] = idArray[idx];
+        mapped[key] = cell;
       }
     });
+
+    // fallback for productId if still missing
+    if (!mapped.productId && Array.isArray(idArray) && idArray.length) {
+      mapped.productId = idArray[0];
+    }
 
     return mapped;
   });
 
+  // ✅ SAFE unit parse
+  let priceOption = "";
+  if (priceOptionTag?.title) {
+    const last = String(priceOptionTag.title).trim().split(" ").pop();
+    priceOption = String(last || "").replace(".", "");
+  }
+
   return {
-    name: product.name,
-    description: product.subName,
-    info: product.info,
-    addOn: product.addOn,
-    img: product.img,
-    priceOption: priceOptionTag?.title.split(' ').pop().replace('.', ''), // 'm' or 'stk'
-    ids: transformedIds
+    name: product?.name ?? "",
+    description: product?.subName ?? "",
+    info: product?.info ?? "",
+    addOn: product?.addOn ?? "",
+    img: product?.img ?? "",
+    priceOption: priceOption || "m", // default
+    ids: transformedIds, // array of objects
   };
 }
