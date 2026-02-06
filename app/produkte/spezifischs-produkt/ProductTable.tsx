@@ -15,7 +15,7 @@ export default function ProductTable({ product }: { product: any }) {
   }
 
   return (
-    <div className="w-full overflow-x-auto border border-gray-200">
+    <div className="w-full overflow-x-auto border border-gray-200 bg-white">
       <table className="w-full min-w-[860px] border-collapse text-sm">
         <thead>
           <tr className="bg-[#1e88d3] text-white">
@@ -26,10 +26,18 @@ export default function ProductTable({ product }: { product: any }) {
             <th className="p-3 text-left">Netto Preis CHF / Meter</th>
           </tr>
           <tr className="bg-[#89c4f4] text-white italic">
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">N° d&apos;art</th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">Longueur mm</th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">Largeur mm</th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">Hauteur mm</th>
+            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
+              N° d&apos;art
+            </th>
+            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
+              Longueur mm
+            </th>
+            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
+              Largeur mm
+            </th>
+            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
+              Hauteur mm
+            </th>
             <th className="p-2 text-left text-xs font-normal">Prix net CHF / mètre</th>
           </tr>
         </thead>
