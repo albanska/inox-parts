@@ -183,11 +183,6 @@ export default function Page() {
                   </div>
                 )}
               </div>
-
-              {/* Debug line – keep for now */}
-              <div className="mt-2 text-xs text-gray-400 break-all">
-                IMG: {imgSrc || "EMPTY"}
-              </div>
             </div>
           </div>
         </div>
