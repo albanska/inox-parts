@@ -5,11 +5,11 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
-
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
-// 🔧 TURN ON/OFF FEATURES
-const ENABLE_TABLE = false; // <-- kur ta bëjmë true, nëse del error, fajtori është tabela/transform
+// 🔧 switches
+const ENABLE_TABLE = false; // do e ndezim më vonë
+const SHOW_DEBUG = false;   // nëse e bën true, të shfaqet çka po vjen nga product
 
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
@@ -26,8 +26,58 @@ function formatTitle(v: any) {
 function normalizeUrl(src: string) {
   if (!src) return "";
   if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  if (src.startsWith("//")) return `https:${src}`;
   if (src.startsWith("/")) return src;
   return `/${src}`;
+}
+
+function getImageSrc(product: any): string {
+  const candidates: any[] = [
+    product?.img,
+    product?.image,
+    product?.imageUrl,
+    product?.imageURL,
+    product?.image_url,
+    product?.photo,
+    product?.photoUrl,
+    product?.thumbnail,
+    product?.thumb,
+    product?.src,
+    product?.url,
+
+    product?.media?.url,
+    product?.media?.src,
+    product?.media?.[0]?.url,
+    product?.media?.[0]?.src,
+
+    product?.images?.[0],
+    product?.images?.[0]?.url,
+    product?.images?.[0]?.src,
+  ];
+
+  for (const c of candidates) {
+    if (!c) continue;
+
+    // string direkt
+    if (typeof c === "string") return normalizeUrl(c);
+
+    // objekt {url/src}
+    if (typeof c === "object") {
+      if (typeof c?.url === "string") return normalizeUrl(c.url);
+      if (typeof c?.src === "string") return normalizeUrl(c.src);
+    }
+  }
+
+  // fallback: kërko URL në krejt objektin (kur është i fshehur diku)
+  try {
+    const s = JSON.stringify(product);
+    const m = s.match(
+      /(https?:\/\/[^"']+\.(png|jpg|jpeg|webp|gif|svg)|\/\/[^"']+\.(png|jpg|jpeg|webp|gif|svg)|\/[^"']+\.(png|jpg|jpeg|webp|gif|svg))/i
+    );
+    if (m?.[1]) return normalizeUrl(m[1]);
+  } catch {}
+
+  return "";
 }
 
 export default function Page() {
@@ -61,11 +111,12 @@ export default function Page() {
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  // ✅ use YOUR real fields (no transform yet)
+  // ✅ këto janë fushat reale nga admin: Name / Description / Info
   const title = formatTitle(product?.name);
-  const subtitle = safeText(product?.subName || product?.description);
-  const infoLine = safeText(product?.info);
-  const imgSrc = normalizeUrl(safeText(product?.img));
+  const subtitle = safeText(product?.subName || product?.description); // Description
+  const infoLine = safeText(product?.info); // Info
+
+  const imgSrc = getImageSrc(product);
 
   return (
     <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
@@ -118,6 +169,24 @@ export default function Page() {
                   {infoLine}
                 </div>
               ) : null}
+
+              {SHOW_DEBUG ? (
+                <pre className="mt-6 text-xs text-gray-400 whitespace-pre-wrap">
+                  {JSON.stringify(
+                    {
+                      name: product?.name,
+                      subName: product?.subName,
+                      info: product?.info,
+                      img: product?.img,
+                      image: product?.image,
+                      imageUrl: product?.imageUrl,
+                      imgSrcFound: imgSrc,
+                    },
+                    null,
+                    2
+                  )}
+                </pre>
+              ) : null}
             </div>
 
             <div className="w-full">
@@ -139,18 +208,12 @@ export default function Page() {
           </div>
         </div>
 
-        {/* table test */}
-        {ENABLE_TABLE ? (
-          <div className="mt-8 bg-white p-6 border border-gray-200">
-            <div className="text-sm text-gray-600">
-              TABLE ENABLED — if you see an error now, the crash is inside ProductTable/transform.
-            </div>
-          </div>
-        ) : (
+        {/* table placeholder */}
+        {!ENABLE_TABLE ? (
           <div className="mt-8 bg-white p-6 border border-gray-200 text-sm text-gray-600">
             TABLE DISABLED — no map errors should happen.
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
