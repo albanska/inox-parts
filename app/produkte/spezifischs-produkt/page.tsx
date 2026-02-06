@@ -5,10 +5,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
+import ProductTable from "@/app/components/specific-product/ProductTable";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
-/* ---------------- helpers ---------------- */
-
+/* helpers */
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -58,24 +58,19 @@ function getImageSrc(product: any): string {
       if (typeof c?.src === "string") return normalizeUrl(c.src);
     }
   }
-
   return "";
 }
-
-/* ---------------- page ---------------- */
 
 export default function Page() {
   const [productId, setProductId] = useState<string>("");
   const [resp, setResp] = useState<any>(null);
 
-  // get id from hash
   useEffect(() => {
     const hashId = window.location.hash.replace("#", "");
     if (hashId) setProductId(hashId);
     else setResp({ status: "404" });
   }, []);
 
-  // fetch product
   useEffect(() => {
     if (!productId) return;
 
@@ -97,11 +92,7 @@ export default function Page() {
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  /* ✅ EXACT mapping from admin:
-     Name        -> title
-     Description -> subtitle
-     Info        -> infoLine
-  */
+  // ✅ mapping from admin fields
   const title = formatTitle(product?.name);
   const subtitle = safeText(product?.description);
   const infoLine = safeText(product?.info);
@@ -118,6 +109,7 @@ export default function Page() {
             <button
               onClick={() => setProductId(prevId)}
               className="h-28 w-10 flex items-center justify-center"
+              aria-label="Previous"
             >
               <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -129,6 +121,7 @@ export default function Page() {
             <button
               onClick={() => setProductId(nextId)}
               className="h-28 w-10 flex items-center justify-center"
+              aria-label="Next"
             >
               <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -145,22 +138,16 @@ export default function Page() {
                 PRODUKTKATALOG &amp; PREISLISTE 2026
               </div>
 
-              <h1 className="text-4xl font-bold text-[#2d3142] uppercase">
-                {title}
-              </h1>
+              <h1 className="text-4xl font-bold text-[#2d3142] uppercase">{title}</h1>
 
               {subtitle && (
-                <div className="mt-2 text-2xl text-gray-400">
-                  {subtitle}
-                </div>
+                <div className="mt-2 text-2xl text-gray-400">{subtitle}</div>
               )}
 
               <div className="mt-6 border-b-2 border-[#1f86d6] w-[240px]" />
 
               {infoLine && (
-                <div className="mt-3 text-sm text-gray-700 font-medium">
-                  {infoLine}
-                </div>
+                <div className="mt-3 text-sm text-gray-700 font-medium">{infoLine}</div>
               )}
             </div>
 
@@ -173,9 +160,6 @@ export default function Page() {
                     alt={title}
                     className="w-full h-[320px] object-contain p-2"
                     loading="lazy"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display = "none";
-                    }}
                   />
                 ) : (
                   <div className="w-full h-[320px] flex items-center justify-center text-sm text-gray-300">
@@ -188,7 +172,11 @@ export default function Page() {
           </div>
         </div>
 
-        {/* nothing else yet */}
+        {/* ✅ TABLE UNDER HEADER */}
+        <div className="mt-8">
+          <ProductTable product={product} />
+        </div>
+
       </div>
     </div>
   );
