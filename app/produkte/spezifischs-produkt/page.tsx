@@ -1,14 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
-
-import ProductInfoMobile from "@/app/components/specific-product/ProductInfoMobile";
-import ProductInfo from "@/app/components/specific-product/ProductInfo";
-
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
 function safeText(v: any): string {
@@ -30,7 +26,6 @@ function normalizeUrl(src: string) {
   return `/${src}`;
 }
 
-// ✅ strong image picker (tries many keys, also shallow JSON fallback)
 function getImageSrc(product: any): string {
   const candidates: any[] = [
     product?.image,
@@ -44,14 +39,10 @@ function getImageSrc(product: any): string {
     product?.thumb,
     product?.src,
     product?.url,
-
-    // nested common:
     product?.media?.url,
     product?.media?.src,
-    product?.media?.image,
     product?.media?.[0]?.url,
     product?.media?.[0]?.src,
-
     product?.images?.[0],
     product?.images?.[0]?.url,
     product?.images?.[0]?.src,
@@ -66,7 +57,6 @@ function getImageSrc(product: any): string {
     }
   }
 
-  // last fallback: find any image-like path inside product JSON (shallow)
   try {
     const s = JSON.stringify(product);
     const m = s.match(
@@ -79,110 +69,92 @@ function getImageSrc(product: any): string {
 }
 
 export default function Page() {
-  const [productId, setProductId] = useState<string | null>(null);
+  const [productId, setProductId] = useState<string>("");
   const [resp, setResp] = useState<any>(null);
 
+  // get id from hash
   useEffect(() => {
-    let id = productId;
+    const hashId = window.location.hash.replace("#", "");
+    if (hashId) setProductId(hashId);
+    else setResp({ status: "404" });
+  }, []);
 
-    if (!id && typeof window !== "undefined") {
-      const hash = window.location.hash.replace("#", "");
-      id = hash;
-    }
-
-    if (!id) return;
+  // fetch
+  useEffect(() => {
+    if (!productId) return;
 
     (async () => {
       try {
-        const res = await getSpecificProduct(id as string);
+        const res = await getSpecificProduct(productId);
         setResp(res);
-        if (typeof window !== "undefined") window.location.hash = id as string;
+        window.location.hash = productId;
       } catch (e) {
         setResp({ status: "500", error: String(e) });
       }
     })();
   }, [productId]);
 
-  if (resp === null) return <Loader />;
+  if (!resp) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
-  const product = resp?.product;
-  if (!product) {
-    return (
-      <div className="p-6 text-red-600 font-bold">
-        Product data missing.
-      </div>
-    );
-  }
-
+  const product = resp?.product || {};
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  function handleProductIdChange(direction: "left" | "right") {
-    if (direction === "left" && prevId) setProductId(prevId);
-    if (direction === "right" && nextId) setProductId(nextId);
-  }
-
-  // ✅ header fields
   const title = formatTitle(product?.name || product?.title);
-  const subtitle = safeText(product?.subtitle || product?.subTitle || product?.description || "");
+  const subtitle = safeText(product?.subtitle || product?.subTitle || product?.description);
   const infoLine = safeText(product?.info || product?.material || product?.thickness || "");
 
-  const imgSrc = useMemo(() => getImageSrc(product), [product]);
+  const imgSrc = getImageSrc(product);
 
   return (
-    <div className="w-full min-h-dvh relative">
-      {/* keep mobile layout from old system */}
-      <ProductInfoMobile product={product} />
-
-      <div className="w-full max-w-[1200px] mx-auto px-4 md:px-10 py-8 relative">
-        {/* Left Arrow */}
+    <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
+      <div className="max-w-[1100px] mx-auto relative">
+        {/* Arrows */}
         {prevId && (
-          <div className="hidden md:block absolute top-24 -left-6 lg:-left-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
+          <div className="hidden md:block absolute top-24 -left-14 z-10 bg-white shadow-xl rounded-md hover:scale-105 transition">
             <button
-              onClick={() => handleProductIdChange("left")}
-              className="h-28 w-8 flex justify-center items-center hover:-translate-x-0.5 transition-all"
-              aria-label="Previous product"
+              onClick={() => setProductId(prevId)}
+              className="h-28 w-10 flex items-center justify-center"
+              aria-label="Previous"
             >
               <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
             </button>
           </div>
         )}
 
-        {/* Right Arrow */}
         {nextId && (
-          <div className="hidden md:block absolute top-24 -right-6 lg:-right-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
+          <div className="hidden md:block absolute top-24 -right-14 z-10 bg-white shadow-xl rounded-md hover:scale-105 transition">
             <button
-              onClick={() => handleProductIdChange("right")}
-              className="h-28 w-8 flex justify-center items-center hover:translate-x-0.5 transition-all"
-              aria-label="Next product"
+              onClick={() => setProductId(nextId)}
+              className="h-28 w-10 flex items-center justify-center"
+              aria-label="Next"
             >
               <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
             </button>
           </div>
         )}
 
-        {/* ✅ HEADER (left text, right image) */}
-        <div className="bg-white p-6">
+        {/* Header Card */}
+        <div className="bg-white p-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_420px] gap-8 items-start">
-            {/* LEFT */}
+            {/* LEFT TEXT */}
             <div>
-              <div className="text-center text-gray-300 text-[10px] uppercase tracking-widest mb-6 hidden md:block">
+              <div className="text-gray-300 text-[10px] uppercase tracking-widest mb-6">
                 PRODUKTKATALOG &amp; PREISLISTE 2026
               </div>
 
-              <h1 className="text-3xl md:text-4xl font-bold text-[#2d3142] uppercase">
+              <h1 className="text-4xl font-bold text-[#2d3142] uppercase">
                 {title}
               </h1>
 
               {subtitle ? (
-                <div className="mt-1 text-xl text-gray-400">
+                <div className="mt-2 text-2xl text-gray-400">
                   {subtitle}
                 </div>
               ) : null}
 
-              {/* blue underline */}
-              <div className="mt-5 border-b-2 border-[#1f86d6] w-[220px]" />
+              <div className="mt-6 border-b-2 border-[#1f86d6] w-[240px]" />
 
               {infoLine ? (
                 <div className="mt-3 text-sm text-gray-700 font-medium">
@@ -193,40 +165,34 @@ export default function Page() {
 
             {/* RIGHT IMAGE */}
             <div className="w-full">
-              <div className="w-full border border-gray-200 bg-white">
+              <div className="w-full border border-gray-200 bg-white flex items-center justify-center">
                 {imgSrc ? (
                   <img
                     src={imgSrc}
                     alt={title}
-                    className="w-full h-[260px] md:h-[320px] object-contain p-2"
+                    className="w-full h-[320px] object-contain p-2"
                     loading="lazy"
                     onError={(e) => {
+                      // show fallback instead of broken image icon
                       (e.currentTarget as HTMLImageElement).style.display = "none";
                     }}
                   />
                 ) : (
-                  <div className="w-full h-[260px] md:h-[320px] flex items-center justify-center text-sm text-gray-300">
+                  <div className="w-full h-[320px] flex items-center justify-center text-sm text-gray-300">
                     No image found
                   </div>
                 )}
               </div>
 
-              {/* DEBUG (optional): show what image URL we found) */}
-              {/* <div className="mt-2 text-xs text-gray-400 break-all">{imgSrc}</div> */}
+              {/* Debug line – keep for now */}
+              <div className="mt-2 text-xs text-gray-400 break-all">
+                IMG: {imgSrc || "EMPTY"}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ✅ OLD VERTICAL BOXES - keep them exactly as before */}
-        <div className="mt-6">
-          <ProductInfo
-            product={product}
-            handleProductIdChange={(dir: string) =>
-              handleProductIdChange(dir === "right" ? "right" : "left")
-            }
-            leftId={prevId}
-          />
-        </div>
+        {/* ✅ for now: nothing else. no vertical boxes. */}
       </div>
     </div>
   );
