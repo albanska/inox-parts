@@ -5,11 +5,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
+import ProductTable from "@/app/components/specific-product/ProductTable";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
-
-// 🔧 switches
-const ENABLE_TABLE = false; // do e ndezim më vonë
-const SHOW_DEBUG = false;   // nëse e bën true, të shfaqet çka po vjen nga product
 
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
@@ -57,18 +54,13 @@ function getImageSrc(product: any): string {
 
   for (const c of candidates) {
     if (!c) continue;
-
-    // string direkt
     if (typeof c === "string") return normalizeUrl(c);
-
-    // objekt {url/src}
     if (typeof c === "object") {
       if (typeof c?.url === "string") return normalizeUrl(c.url);
       if (typeof c?.src === "string") return normalizeUrl(c.src);
     }
   }
 
-  // fallback: kërko URL në krejt objektin (kur është i fshehur diku)
   try {
     const s = JSON.stringify(product);
     const m = s.match(
@@ -111,10 +103,9 @@ export default function Page() {
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  // ✅ këto janë fushat reale nga admin: Name / Description / Info
   const title = formatTitle(product?.name);
-  const subtitle = safeText(product?.subName || product?.description); // Description
-  const infoLine = safeText(product?.info); // Info
+  const subtitle = safeText(product?.subName || product?.description);
+  const infoLine = safeText(product?.info);
 
   const imgSrc = getImageSrc(product);
 
@@ -169,24 +160,6 @@ export default function Page() {
                   {infoLine}
                 </div>
               ) : null}
-
-              {SHOW_DEBUG ? (
-                <pre className="mt-6 text-xs text-gray-400 whitespace-pre-wrap">
-                  {JSON.stringify(
-                    {
-                      name: product?.name,
-                      subName: product?.subName,
-                      info: product?.info,
-                      img: product?.img,
-                      image: product?.image,
-                      imageUrl: product?.imageUrl,
-                      imgSrcFound: imgSrc,
-                    },
-                    null,
-                    2
-                  )}
-                </pre>
-              ) : null}
             </div>
 
             <div className="w-full">
@@ -208,12 +181,10 @@ export default function Page() {
           </div>
         </div>
 
-        {/* table placeholder */}
-        {!ENABLE_TABLE ? (
-          <div className="mt-8 bg-white p-6 border border-gray-200 text-sm text-gray-600">
-            TABLE DISABLED — no map errors should happen.
-          </div>
-        ) : null}
+        {/* TABLE (horizontal) */}
+        <div className="mt-8">
+          <ProductTable product={product} />
+        </div>
       </div>
     </div>
   );
