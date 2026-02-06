@@ -6,9 +6,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import ProductTable from "@/app/components/specific-product/ProductTable";
-
 import getSpecificProduct from "@/helpers/getSpecificProduct";
-import { transformProduct } from "@/helpers/transformProduct";
 
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
@@ -18,22 +16,72 @@ function safeText(v: any): string {
 }
 
 function formatTitle(v: any) {
-  const s = safeText(v).trim();
+  const s = safeText(v).replace(/-/g, " ").trim();
   return s ? s.toUpperCase() : "PRODUCT";
+}
+
+function normalizeUrl(src: string) {
+  if (!src) return "";
+  if (src.startsWith("http://") || src.startsWith("https://")) return src;
+  if (src.startsWith("/")) return src;
+  return `/${src}`;
+}
+
+function getImageSrc(product: any): string {
+  const candidates: any[] = [
+    product?.img,
+    product?.image,
+    product?.imageUrl,
+    product?.imageURL,
+    product?.image_url,
+    product?.photo,
+    product?.photoUrl,
+    product?.thumbnail,
+    product?.thumb,
+    product?.src,
+    product?.url,
+    product?.media?.url,
+    product?.media?.src,
+    product?.media?.[0]?.url,
+    product?.media?.[0]?.src,
+    product?.images?.[0],
+    product?.images?.[0]?.url,
+    product?.images?.[0]?.src,
+  ];
+
+  for (const c of candidates) {
+    if (!c) continue;
+    if (typeof c === "string") return normalizeUrl(c);
+    if (typeof c === "object") {
+      if (typeof c?.url === "string") return normalizeUrl(c.url);
+      if (typeof c?.src === "string") return normalizeUrl(c.src);
+    }
+  }
+
+  // last resort: regex search in JSON
+  try {
+    const s = JSON.stringify(product);
+    const m = s.match(
+      /(https?:\/\/[^"']+\.(png|jpg|jpeg|webp|gif|svg)|\/[^"']+\.(png|jpg|jpeg|webp|gif|svg))/i
+    );
+    if (m?.[1]) return normalizeUrl(m[1]);
+  } catch {}
+
+  return "";
 }
 
 export default function Page() {
   const [productId, setProductId] = useState<string>("");
   const [resp, setResp] = useState<any>(null);
 
-  // read hash once
+  // get id from hash
   useEffect(() => {
     const hashId = window.location.hash.replace("#", "");
     if (hashId) setProductId(hashId);
-    else setResp({ status: "404" });
+    else setResp({ status: "404", id: "" });
   }, []);
 
-  // fetch when id changes
+  // fetch product
   useEffect(() => {
     if (!productId) return;
 
@@ -51,18 +99,15 @@ export default function Page() {
   if (!resp) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
-  // raw product from supabase
-  const rawProduct = resp?.product || {};
-  // ✅ normalize to table-friendly structure
-  const product = transformProduct(rawProduct);
-
+  const product = resp?.product || {};
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
+  // ✅ këto janë fushat nga admin: Name, Description, Info
   const title = formatTitle(product?.name);
-  const description = safeText(product?.description); // subName
-  const info = safeText(product?.info); // info
-  const imgSrc = safeText(product?.img); // img
+  const subtitle = safeText(product?.subName || product?.description); // Description
+  const infoLine = safeText(product?.info); // Info
+  const imgSrc = getImageSrc(product);
 
   return (
     <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
@@ -95,7 +140,7 @@ export default function Page() {
         {/* header card */}
         <div className="bg-white p-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_420px] gap-8 items-start">
-            {/* LEFT */}
+            {/* left */}
             <div>
               <div className="text-gray-300 text-[10px] uppercase tracking-widest mb-6">
                 PRODUKTKATALOG &amp; PREISLISTE 2026
@@ -105,20 +150,20 @@ export default function Page() {
                 {title}
               </h1>
 
-              {description ? (
-                <div className="mt-2 text-2xl text-gray-400">{description}</div>
+              {subtitle ? (
+                <div className="mt-2 text-2xl text-gray-400">{subtitle}</div>
               ) : null}
 
               <div className="mt-6 border-b-2 border-[#1f86d6] w-[240px]" />
 
-              {info ? (
+              {infoLine ? (
                 <div className="mt-3 text-sm text-gray-700 font-medium">
-                  {info}
+                  {infoLine}
                 </div>
               ) : null}
             </div>
 
-            {/* RIGHT IMAGE */}
+            {/* right image */}
             <div className="w-full">
               <div className="w-full border border-gray-200 bg-white flex items-center justify-center">
                 {imgSrc ? (
@@ -130,7 +175,7 @@ export default function Page() {
                   />
                 ) : (
                   <div className="w-full h-[320px] flex items-center justify-center text-sm text-gray-300">
-                    No image
+                    No image found
                   </div>
                 )}
               </div>
@@ -138,8 +183,8 @@ export default function Page() {
           </div>
         </div>
 
-        {/* TABLE */}
-        <div className="mt-6">
+        {/* ✅ table under header */}
+        <div className="mt-8">
           <ProductTable product={product} />
         </div>
       </div>
