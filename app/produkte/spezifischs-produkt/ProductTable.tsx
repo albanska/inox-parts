@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 
 const ID_KEYS = ["id", "Id", "artNr", "art_nr", "article", "articleNumber"];
 const LEN_KEYS = ["length", "laenge", "Länge", "Lange", "lengthMm", "l"];
@@ -8,43 +8,9 @@ const WID_KEYS = ["width", "breite", "Breite", "widthMm", "b"];
 const HEI_KEYS = ["height", "hoehe", "Höhe", "heightMm", "h"];
 const PRI_KEYS = ["price", "preis", "Price", "netto", "netPrice"];
 
-function hasAnyKey(obj: any, keys: string[]) {
-  if (!obj || typeof obj !== "object") return false;
-  return keys.some((k) => obj[k] !== undefined && obj[k] !== null && obj[k] !== "");
-}
-
-function isRowCandidate(x: any) {
-  if (!x || typeof x !== "object") return false;
-  const hasId = hasAnyKey(x, ID_KEYS);
-  const hasDim = hasAnyKey(x, LEN_KEYS) || hasAnyKey(x, WID_KEYS) || hasAnyKey(x, HEI_KEYS);
-  const hasPrice = hasAnyKey(x, PRI_KEYS);
-  return hasId && (hasDim || hasPrice);
-}
-
-function pickRowsDeep(root: any): any[] {
-  const visited = new WeakSet<object>();
-  const candidates: any[][] = [];
-
-  function walk(node: any) {
-    if (!node) return;
-
-    if (Array.isArray(node)) {
-      const good = node.filter(isRowCandidate);
-      if (good.length >= 1) candidates.push(good);
-      for (const item of node) walk(item);
-      return;
-    }
-
-    if (typeof node !== "object") return;
-    if (visited.has(node)) return;
-    visited.add(node);
-
-    for (const k of Object.keys(node)) walk(node[k]);
-  }
-
-  walk(root);
-  candidates.sort((a, b) => b.length - a.length);
-  return candidates[0] || [];
+function safeCell(v: any): string {
+  if (v === null || v === undefined || v === "") return "-";
+  return String(v);
 }
 
 function getVal(row: any, keys: string[], fallback: any = "-") {
@@ -55,57 +21,68 @@ function getVal(row: any, keys: string[], fallback: any = "-") {
   return fallback;
 }
 
-export default function ProductTable({ product }: { product: any }) {
-  const rows = pickRowsDeep(product);
+function pickRowsSimple(product: any): any[] {
+  const r = product?.items || product?.variants || product?.rows || product?.products || product?.data || [];
+  return Array.isArray(r) ? r : [];
+}
 
-  if (!rows || rows.length === 0) {
-    return <div className="p-6 text-sm text-gray-500">No variants found.</div>;
+export default function ProductTable({ product }: { product: any }) {
+  const rows = useMemo(() => {
+    try {
+      return pickRowsSimple(product);
+    } catch {
+      return [];
+    }
+  }, [product]);
+
+  if (rows.length === 0) {
+    return <div className="p-6 text-sm text-gray-400 italic">Keine Varianten gefunden.</div>;
   }
 
   return (
-    <div className="w-full bg-white">
+    <div className="w-full overflow-hidden rounded-sm border border-gray-200">
       <div className="overflow-x-auto">
-        <table className="min-w-[860px] w-full border-collapse">
+        <table className="w-full border-collapse text-left">
           <thead>
+            {/* Dark Blue Header - German */}
             <tr className="bg-[#1f86d6] text-white">
-              <th className="px-4 py-3 text-left text-sm font-semibold">Art.-Nr.</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Länge mm</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Breite mm</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">Höhe mm</th>
-              <th className="px-4 py-3 text-left text-sm font-semibold">
-                Netto Preis CHF / Meter
-              </th>
+              <th className="px-4 py-3 text-[13px] font-semibold border-r border-blue-400/30">Art.-Nr.</th>
+              <th className="px-4 py-3 text-[13px] font-semibold border-r border-blue-400/30">Länge mm</th>
+              <th className="px-4 py-3 text-[13px] font-semibold border-r border-blue-400/30">Breite mm</th>
+              <th className="px-4 py-3 text-[13px] font-semibold border-r border-blue-400/30">Höhe mm</th>
+              <th className="px-4 py-3 text-[13px] font-semibold">Netto Preis CHF / Meter</th>
             </tr>
 
-            <tr className="bg-[#4aa6e6] text-white">
-              <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
-              <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
-              <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
-              <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
-              <th className="px-4 py-2 text-left text-xs font-medium">Prix net CHF / mètre</th>
+            {/* Light Blue Header - French */}
+            <tr className="bg-[#7eb6e7] text-white border-t border-blue-300">
+              <th className="px-4 py-2 text-[11px] font-medium border-r border-blue-200/40 italic">N° d'art</th>
+              <th className="px-4 py-2 text-[11px] font-medium border-r border-blue-200/40 italic">Longueur mm</th>
+              <th className="px-4 py-2 text-[11px] font-medium border-r border-blue-200/40 italic">Largeur mm</th>
+              <th className="px-4 py-2 text-[11px] font-medium border-r border-blue-200/40 italic">Hauteur mm</th>
+              <th className="px-4 py-2 text-[11px] font-medium italic">Prix net CHF / mètre</th>
             </tr>
           </thead>
 
-          <tbody>
+          <tbody className="divide-y divide-gray-100">
             {rows.map((row: any, idx: number) => {
-              const id = getVal(row, ID_KEYS);
-              const length = getVal(row, LEN_KEYS);
-              const width = getVal(row, WID_KEYS);
-              const height = getVal(row, HEI_KEYS);
-              const price = getVal(row, PRI_KEYS);
+              const id = safeCell(getVal(row, ID_KEYS));
+              const length = safeCell(getVal(row, LEN_KEYS));
+              const width = safeCell(getVal(row, WID_KEYS));
+              const height = safeCell(getVal(row, HEI_KEYS));
+              const priceRaw = getVal(row, PRI_KEYS, "-");
 
-              const priceNum =
-                typeof price === "string" ? Number(price.replace(",", ".")) : Number(price);
+              let price = safeCell(priceRaw);
+              if (priceRaw !== "-" && !isNaN(Number(String(priceRaw).replace(",", ".")))) {
+                price = Number(String(priceRaw).replace(",", ".")).toFixed(2);
+              }
 
               return (
-                <tr key={`${id}-${idx}`} className={idx % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                  <td className="px-4 py-2 text-sm">{id}</td>
-                  <td className="px-4 py-2 text-sm">{length}</td>
-                  <td className="px-4 py-2 text-sm">{width}</td>
-                  <td className="px-4 py-2 text-sm">{height}</td>
-                  <td className="px-4 py-2 text-sm">
-                    {Number.isFinite(priceNum) ? priceNum.toFixed(2) : price}
-                  </td>
+                <tr key={`${id}-${idx}`} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                  <td className="px-4 py-2 text-[13px] font-medium border-r border-gray-100">{id}</td>
+                  <td className="px-4 py-2 text-[13px] border-r border-gray-100">{length}</td>
+                  <td className="px-4 py-2 text-[13px] border-r border-gray-100">{width}</td>
+                  <td className="px-4 py-2 text-[13px] border-r border-gray-100">{height}</td>
+                  <td className="px-4 py-2 text-[13px] font-bold">{price}</td>
                 </tr>
               );
             })}
