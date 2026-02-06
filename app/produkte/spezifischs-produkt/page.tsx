@@ -8,91 +8,45 @@ import ErrorState from "@/app/components/specific-product/ErrorState";
 import ProductTable from "@/app/components/specific-product/ProductTable";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
+// Helper to prevent objects/arrays from crashing the text rendering
+function safeText(v: any): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  return "";
+}
+
 function formatTitle(name: any) {
-  return String(name || "")
-    .replace(/-/g, " ")
-    .trim()
-    .toUpperCase();
+  return safeText(name).replace(/-/g, " ").trim().toUpperCase();
 }
 
-function findStrings(obj: any, max = 80): string[] {
-  const out: string[] = [];
-  const seen = new WeakSet<object>();
-
-  function walk(node: any) {
-    if (out.length >= max) return;
-    if (node === null || node === undefined) return;
-
-    if (typeof node === "string") {
-      const s = node.trim();
-      if (s && s.length <= 300) out.push(s);
-      return;
-    }
-
-    if (Array.isArray(node)) {
-      for (const it of node) walk(it);
-      return;
-    }
-
-    if (typeof node !== "object") return;
-    if (seen.has(node)) return;
-    seen.add(node);
-
-    for (const k of Object.keys(node)) walk(node[k]);
-  }
-
-  walk(obj);
-  return out;
-}
-
-function guessImageUrl(product: any) {
-  // most likely keys first
-  const candidates = [
+function pickImage(product: any): string {
+  const candidates: any[] = [
     product?.image,
     product?.img,
     product?.imageUrl,
     product?.imageURL,
     product?.image_url,
     product?.photo,
-    product?.photoUrl,
     product?.thumbnail,
-    product?.thumb,
-    product?.src,
-    product?.url,
-    product?.images?.[0],
-    product?.imgs?.[0],
-    product?.photos?.[0],
-  ]
-    .flat()
-    .filter(Boolean);
+  ];
 
-  // if object → try .url/.src
   for (const c of candidates) {
+    if (!c) continue;
     if (typeof c === "string") return c;
     if (typeof c === "object") {
       if (typeof c?.url === "string") return c.url;
       if (typeof c?.src === "string") return c.src;
     }
   }
-
-  // fallback: search any string that looks like image url/path
-  const strings = findStrings(product, 200);
-  const imgLike = strings.find((s) =>
-    /\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(s)
-  );
-  return imgLike || "";
+  return "";
 }
 
 function normalizeImg(src: string) {
   if (!src) return "";
-  // Already absolute
   if (src.startsWith("http://") || src.startsWith("https://")) return src;
-
-  // If it starts with / it's same-domain
-  if (src.startsWith("/")) return src;
-
-  // If it's relative like "uploads/..." → make it /uploads/...
-  return `/${src}`;
+  const clean = src.startsWith("/") ? src : `/${src}`;
+  return clean;
 }
 
 export default function Page() {
@@ -101,13 +55,12 @@ export default function Page() {
 
   useEffect(() => {
     let id = productId;
-
     if (!id && typeof window !== "undefined") {
       id = window.location.hash.replace("#", "");
     }
     if (!id) return;
 
-    async function run() {
+    (async () => {
       try {
         const res = await getSpecificProduct(id as string);
         setResp(res);
@@ -115,9 +68,7 @@ export default function Page() {
       } catch (e) {
         setResp({ status: "500", error: String(e) });
       }
-    }
-
-    run();
+    })();
   }, [productId]);
 
   if (resp === null) return <Loader />;
@@ -128,144 +79,103 @@ export default function Page() {
   const nextProduct = resp?.nextProduct ?? null;
 
   if (!product) {
-    return (
-      <div className="p-6 text-red-600 font-bold">
-        Product data missing or invalid response.
-      </div>
-    );
+    return <div className="p-6 text-red-600 font-bold">Product data missing.</div>;
   }
 
   function handleProductIdChange(direction: "left" | "right") {
-    if (direction === "right") {
-      const id = nextProduct?.id;
-      if (id) setProductId(id);
-    } else {
-      const id = prevProduct?.id;
-      if (id) setProductId(id);
-    }
+    const id = direction === "right" ? nextProduct?.id : prevProduct?.id;
+    if (id) setProductId(id);
   }
 
   const title = formatTitle(product?.name || product?.title || "PRODUCT");
-
-  // ✅ subtitle: try a bunch of keys (we don't guess only "description" anymore)
-  const subtitle =
-    product?.subtitle ||
-    product?.subTitle ||
-    product?.type ||
-    product?.category ||
-    product?.categoryName ||
-    product?.family ||
-    product?.group ||
-    product?.description ||
-    "";
-
-  // ✅ info line (material/thickness)
-  const info =
-    product?.info ||
-    product?.material ||
-    product?.thickness ||
-    product?.spec ||
-    product?.specs ||
-    "";
-
-  // ✅ image
-  const rawImg = useMemo(() => guessImageUrl(product), [product]);
-  const imgSrc = normalizeImg(String(rawImg || ""));
-
-  // ✅ DEBUG
-  const debugKeys = Object.keys(product || {}).slice(0, 40);
-  const debugImgCandidates = useMemo(() => {
-    const strings = findStrings(product, 200);
-    return strings.filter((s) => /\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(s)).slice(0, 20);
+  const subtitle = safeText(product?.subtitle || product?.subTitle || "");
+  
+  // Use useMemo for the image to prevent flickering
+  const imgSrc = useMemo(() => {
+    try {
+      return normalizeImg(pickImage(product));
+    } catch {
+      return "";
+    }
   }, [product]);
 
   return (
-    <div className="w-full min-h-dvh relative">
-      <div className="relative w-full max-w-[1200px] mx-auto px-4 md:px-10 py-6">
-        {/* Arrows */}
+    <div className="w-full min-h-screen bg-white text-[#2d3142] font-sans">
+      <div className="relative w-full max-w-[1100px] mx-auto px-6 py-8">
+        
+        {/* Navigation Arrows */}
         {!!prevProduct?.id && (
-          <div className="hidden md:block absolute top-24 -left-6 lg:-left-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
-            <button
-              onClick={() => handleProductIdChange("left")}
-              className="h-28 w-8 flex justify-center items-center hover:-translate-x-0.5 transition-all"
-              aria-label="Previous product"
-            >
-              <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
-            </button>
-          </div>
+          <button 
+            onClick={() => handleProductIdChange("left")}
+            className="hidden md:flex absolute top-40 -left-12 w-10 h-10 items-center justify-center bg-white shadow-md rounded-full hover:bg-gray-50 transition-all border border-gray-100"
+          >
+            <ArrowLeft size={20} className="text-gray-400" />
+          </button>
         )}
-
         {!!nextProduct?.id && (
-          <div className="hidden md:block absolute top-24 -right-6 lg:-right-14 z-10 hover:scale-105 transition-all hover:bg-[#259fd332] rounded-md shadow-xl bg-white">
-            <button
-              onClick={() => handleProductIdChange("right")}
-              className="h-28 w-8 flex justify-center items-center hover:translate-x-0.5 transition-all"
-              aria-label="Next product"
-            >
-              <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
-            </button>
-          </div>
+          <button 
+            onClick={() => handleProductIdChange("right")}
+            className="hidden md:flex absolute top-40 -right-12 w-10 h-10 items-center justify-center bg-white shadow-md rounded-full hover:bg-gray-50 transition-all border border-gray-100"
+          >
+            <ArrowRight size={20} className="text-gray-400" />
+          </button>
         )}
 
-        {/* HEADER (PDF style) */}
-        <div className="bg-white p-6">
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_360px] gap-6 items-start">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-[#2d3142]">{title}</h1>
+        {/* Top Header Tagline */}
+        <div className="text-center text-gray-400 text-[11px] mb-12 uppercase tracking-[0.2em]">
+          Produktkatalog & Preisliste 2026
+        </div>
 
-              {subtitle ? (
-                <div className="mt-1 text-sm text-gray-500 uppercase">{String(subtitle)}</div>
-              ) : null}
+        {/* Main Content: Split Layout */}
+        <div className="flex flex-col md:flex-row justify-between items-start gap-12">
+          
+          {/* Left: Info */}
+          <div className="flex-1">
+            <h1 className="text-3xl md:text-4xl font-bold text-[#2d3142] leading-none">
+              {title}
+            </h1>
+            <h2 className="text-2xl font-medium text-gray-500 mt-2 mb-10">
+              {subtitle || "Gouttiére plate"}
+            </h2>
 
-              <div className="mt-4 text-sm font-medium text-gray-700 border-b-2 border-[#1f86d6] inline-block pb-1">
-                {String(info || "")}
-              </div>
+            {/* Specs Grid */}
+            <div className="grid grid-cols-[180px_1fr] gap-y-1.5 text-[13px]">
+              <div className="font-bold">Werkstoff <span className="text-gray-400 font-normal">/ Matériau</span></div>
+              <div>{safeText(product?.material || "40 = CrNi")}</div>
+              
+              <div className="font-bold">Werkstoff-Nr. <span className="text-gray-400 font-normal">/ N° de matière</span></div>
+              <div>{safeText(product?.materialNr || "1.4301")}</div>
+              
+              <div className="font-bold">Materialstärke <span className="text-gray-400 font-normal">/ Épaisseur matériau</span></div>
+              <div>{safeText(product?.thickness || "0.8 mm")}</div>
+              
+              <div className="font-bold">Länge des Artikels <span className="text-gray-400 font-normal">/ Longueur des produits</span></div>
+              <div>{safeText(product?.length || "2000 mm")}</div>
             </div>
+          </div>
 
-            <div className="w-full">
-              <div className="w-full bg-white border border-gray-200">
-                {imgSrc ? (
-                  <img
-                    src={imgSrc}
-                    alt={title}
-                    className="w-full h-[220px] object-contain p-2"
-                    loading="lazy"
-                    onError={(e) => {
-                      // shows broken, but keeps page alive
-                      (e.currentTarget as HTMLImageElement).style.opacity = "0.4";
-                    }}
-                  />
-                ) : (
-                  <div className="w-full h-[220px] flex items-center justify-center text-sm text-gray-400">
-                    No image detected
-                  </div>
-                )}
-              </div>
+          {/* Right: Product Image */}
+          <div className="w-full md:w-[45%] flex justify-center md:justify-end">
+            <div className="w-full max-w-[400px]">
+              {imgSrc ? (
+                <img
+                  src={imgSrc}
+                  alt={title}
+                  className="w-full h-auto object-contain"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }}
+                />
+              ) : (
+                <div className="h-48 w-full bg-gray-50 rounded flex items-center justify-center text-gray-300 italic text-sm">
+                  Image not found
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* ✅ TABLE ONLY */}
-        <div className="bg-white mt-6">
+        {/* Table Section */}
+        <div className="mt-14">
           <ProductTable product={product} />
-        </div>
-
-        {/* ✅ DEBUG BOX (temporary) */}
-        <div className="mt-6 bg-white border border-gray-200 p-4 text-xs text-gray-700">
-          <div className="font-semibold mb-2">DEBUG</div>
-          <div>
-            <span className="font-semibold">imgSrc:</span> {imgSrc || "(empty)"}{" "}
-            {rawImg ? (
-              <span className="text-gray-400">(raw: {String(rawImg)})</span>
-            ) : null}
-          </div>
-          <div className="mt-2">
-            <span className="font-semibold">product keys:</span> {debugKeys.join(", ")}
-          </div>
-          <div className="mt-2">
-            <span className="font-semibold">image-like strings found:</span>{" "}
-            {debugImgCandidates.length ? debugImgCandidates.join(" | ") : "(none)"}
-          </div>
         </div>
       </div>
     </div>
