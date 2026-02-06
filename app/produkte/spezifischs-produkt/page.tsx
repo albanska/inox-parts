@@ -6,9 +6,10 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import ProductTable from "@/app/components/specific-product/ProductTable";
-import getSpecificProduct from "@/helpers/getSpecificProduct";
 
-// always return a string (avoid React #310)
+import getSpecificProduct from "@/helpers/getSpecificProduct";
+import { transformProduct } from "@/helpers/transformProduct";
+
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -16,64 +17,23 @@ function safeText(v: any): string {
   return "";
 }
 
-function formatTitle(name: any) {
-  const s = safeText(name).replace(/-/g, " ").trim();
+function formatTitle(v: any) {
+  const s = safeText(v).trim();
   return s ? s.toUpperCase() : "PRODUCT";
-}
-
-function normalizeUrl(src: string) {
-  if (!src) return "";
-  if (src.startsWith("http://") || src.startsWith("https://")) return src;
-  if (src.startsWith("/")) return src;
-  return `/${src}`;
-}
-
-function getImageSrc(product: any): string {
-  const candidates: any[] = [
-    product?.image,
-    product?.img,
-    product?.imageUrl,
-    product?.imageURL,
-    product?.image_url,
-    product?.photo,
-    product?.photoUrl,
-    product?.thumbnail,
-    product?.thumb,
-    product?.src,
-    product?.url,
-    product?.media?.url,
-    product?.media?.src,
-    product?.media?.[0]?.url,
-    product?.media?.[0]?.src,
-    product?.images?.[0],
-    product?.images?.[0]?.url,
-    product?.images?.[0]?.src,
-  ];
-
-  for (const c of candidates) {
-    if (!c) continue;
-    if (typeof c === "string") return normalizeUrl(c);
-    if (typeof c === "object") {
-      if (typeof c?.url === "string") return normalizeUrl(c.url);
-      if (typeof c?.src === "string") return normalizeUrl(c.src);
-    }
-  }
-
-  return "";
 }
 
 export default function Page() {
   const [productId, setProductId] = useState<string>("");
   const [resp, setResp] = useState<any>(null);
 
-  // get id from hash
+  // read hash once
   useEffect(() => {
     const hashId = window.location.hash.replace("#", "");
     if (hashId) setProductId(hashId);
     else setResp({ status: "404" });
   }, []);
 
-  // fetch
+  // fetch when id changes
   useEffect(() => {
     if (!productId) return;
 
@@ -91,21 +51,23 @@ export default function Page() {
   if (!resp) return <Loader />;
   if (resp?.status === "404") return <ErrorState errorStatus={resp} />;
 
-  const product = resp?.product || {};
+  // raw product from supabase
+  const rawProduct = resp?.product || {};
+  // ✅ normalize to table-friendly structure
+  const product = transformProduct(rawProduct);
+
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  // LEFT TEXT (exactly from admin: Name, Description, Info)
   const title = formatTitle(product?.name);
-  const subtitle = safeText(product?.description);
-  const infoLine = safeText(product?.info);
-
-  const imgSrc = getImageSrc(product);
+  const description = safeText(product?.description); // subName
+  const info = safeText(product?.info); // info
+  const imgSrc = safeText(product?.img); // img
 
   return (
     <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
       <div className="max-w-[1100px] mx-auto relative">
-        {/* Arrows */}
+        {/* arrows */}
         {prevId && (
           <div className="hidden md:block absolute top-24 -left-14 z-10 bg-white shadow-xl rounded-md hover:scale-105 transition">
             <button
@@ -130,7 +92,7 @@ export default function Page() {
           </div>
         )}
 
-        {/* HEADER CARD */}
+        {/* header card */}
         <div className="bg-white p-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_420px] gap-8 items-start">
             {/* LEFT */}
@@ -143,15 +105,15 @@ export default function Page() {
                 {title}
               </h1>
 
-              {subtitle ? (
-                <div className="mt-2 text-2xl text-gray-400">{subtitle}</div>
+              {description ? (
+                <div className="mt-2 text-2xl text-gray-400">{description}</div>
               ) : null}
 
               <div className="mt-6 border-b-2 border-[#1f86d6] w-[240px]" />
 
-              {infoLine ? (
+              {info ? (
                 <div className="mt-3 text-sm text-gray-700 font-medium">
-                  {infoLine}
+                  {info}
                 </div>
               ) : null}
             </div>
@@ -165,14 +127,10 @@ export default function Page() {
                     alt={title}
                     className="w-full h-[320px] object-contain p-2"
                     loading="lazy"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).style.display =
-                        "none";
-                    }}
                   />
                 ) : (
                   <div className="w-full h-[320px] flex items-center justify-center text-sm text-gray-300">
-                    No image found
+                    No image
                   </div>
                 )}
               </div>
@@ -180,8 +138,8 @@ export default function Page() {
           </div>
         </div>
 
-        {/* TABLE (horizontal) */}
-        <div className="mt-8">
+        {/* TABLE */}
+        <div className="mt-6">
           <ProductTable product={product} />
         </div>
       </div>
