@@ -7,6 +7,8 @@ import Loader from "@/app/components/loader/Loader";
 import ErrorState from "@/app/components/specific-product/ErrorState";
 import getSpecificProduct from "@/helpers/getSpecificProduct";
 
+/* ---------------- helpers ---------------- */
+
 function safeText(v: any): string {
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
@@ -57,16 +59,10 @@ function getImageSrc(product: any): string {
     }
   }
 
-  try {
-    const s = JSON.stringify(product);
-    const m = s.match(
-      /(https?:\/\/[^"']+\.(png|jpg|jpeg|webp|gif|svg)|\/[^"']+\.(png|jpg|jpeg|webp|gif|svg))/i
-    );
-    if (m?.[1]) return normalizeUrl(m[1]);
-  } catch {}
-
   return "";
 }
+
+/* ---------------- page ---------------- */
 
 export default function Page() {
   const [productId, setProductId] = useState<string>("");
@@ -79,7 +75,7 @@ export default function Page() {
     else setResp({ status: "404" });
   }, []);
 
-  // fetch
+  // fetch product
   useEffect(() => {
     if (!productId) return;
 
@@ -101,22 +97,27 @@ export default function Page() {
   const prevId = resp?.prevProduct?.id ?? null;
   const nextId = resp?.nextProduct?.id ?? null;
 
-  const title = formatTitle(product?.name || product?.title);
-  const subtitle = safeText(product?.subtitle || product?.subTitle || product?.description);
-  const infoLine = safeText(product?.info || product?.material || product?.thickness || "");
+  /* ✅ EXACT mapping from admin:
+     Name        -> title
+     Description -> subtitle
+     Info        -> infoLine
+  */
+  const title = formatTitle(product?.name);
+  const subtitle = safeText(product?.description);
+  const infoLine = safeText(product?.info);
 
   const imgSrc = getImageSrc(product);
 
   return (
     <div className="w-full min-h-screen bg-[#f2f2f2] py-10 px-4">
       <div className="max-w-[1100px] mx-auto relative">
-        {/* Arrows */}
+
+        {/* arrows */}
         {prevId && (
-          <div className="hidden md:block absolute top-24 -left-14 z-10 bg-white shadow-xl rounded-md hover:scale-105 transition">
+          <div className="hidden md:block absolute top-24 -left-14 z-10 bg-white shadow-xl rounded-md">
             <button
               onClick={() => setProductId(prevId)}
               className="h-28 w-10 flex items-center justify-center"
-              aria-label="Previous"
             >
               <ArrowLeft strokeWidth={3} className="text-[#9a8c98]" />
             </button>
@@ -124,20 +125,20 @@ export default function Page() {
         )}
 
         {nextId && (
-          <div className="hidden md:block absolute top-24 -right-14 z-10 bg-white shadow-xl rounded-md hover:scale-105 transition">
+          <div className="hidden md:block absolute top-24 -right-14 z-10 bg-white shadow-xl rounded-md">
             <button
               onClick={() => setProductId(nextId)}
               className="h-28 w-10 flex items-center justify-center"
-              aria-label="Next"
             >
               <ArrowRight strokeWidth={3} className="text-[#9a8c98]" />
             </button>
           </div>
         )}
 
-        {/* Header Card */}
+        {/* HEADER CARD */}
         <div className="bg-white p-8">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_420px] gap-8 items-start">
+
             {/* LEFT TEXT */}
             <div>
               <div className="text-gray-300 text-[10px] uppercase tracking-widest mb-6">
@@ -148,19 +149,19 @@ export default function Page() {
                 {title}
               </h1>
 
-              {subtitle ? (
+              {subtitle && (
                 <div className="mt-2 text-2xl text-gray-400">
                   {subtitle}
                 </div>
-              ) : null}
+              )}
 
               <div className="mt-6 border-b-2 border-[#1f86d6] w-[240px]" />
 
-              {infoLine ? (
+              {infoLine && (
                 <div className="mt-3 text-sm text-gray-700 font-medium">
                   {infoLine}
                 </div>
-              ) : null}
+              )}
             </div>
 
             {/* RIGHT IMAGE */}
@@ -173,7 +174,6 @@ export default function Page() {
                     className="w-full h-[320px] object-contain p-2"
                     loading="lazy"
                     onError={(e) => {
-                      // show fallback instead of broken image icon
                       (e.currentTarget as HTMLImageElement).style.display = "none";
                     }}
                   />
@@ -184,10 +184,11 @@ export default function Page() {
                 )}
               </div>
             </div>
+
           </div>
         </div>
 
-        {/* ✅ for now: nothing else. no vertical boxes. */}
+        {/* nothing else yet */}
       </div>
     </div>
   );
