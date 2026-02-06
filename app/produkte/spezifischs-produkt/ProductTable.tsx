@@ -1,87 +1,97 @@
 "use client";
 
 import React from "react";
+import { transformProduct } from "@/helpers/transformProduct";
 
-function safeCell(v: any) {
-  if (v === null || v === undefined || v === "") return "-";
-  if (typeof v === "string") return v;
-  if (typeof v === "number") return String(v);
-  return "-";
+type Row = {
+  productId?: string;
+  typ?: string;
+  lange?: string;
+  breite?: string;
+  hohe?: string;
+  price?: string;
+};
+
+function toMoney(v: any) {
+  if (v === null || v === undefined) return "-";
+  const s = String(v).replace(",", ".").replace(/[^\d.]/g, "");
+  const n = Number(s);
+  if (!Number.isFinite(n)) return String(v);
+  return n.toFixed(2);
 }
 
-function priceToText(v: any) {
-  const s = safeCell(v);
-  if (s === "-") return "-";
-  // s’po e bëjmë number strict se disa produkte mund t’kenë tekst
-  return s;
+function getRows(product: any): { rows: Row[]; priceUnit: string } {
+  // 1) Primary: your real structure (tags + ids) via transformProduct()
+  try {
+    if (product?.tags && Array.isArray(product.tags) && product?.ids && Array.isArray(product.ids)) {
+      const t = transformProduct(product);
+      const rows = Array.isArray(t?.ids) ? (t.ids as Row[]) : [];
+      const unit = (t?.priceOption || "").toString().toUpperCase(); // "M" or "STK"
+      return { rows, priceUnit: unit || "" };
+    }
+  } catch (e) {
+    // ignore and fallback below
+  }
+
+  // 2) Fallback: if later you have items/variants
+  const fallbackRows = (product?.items || product?.variants || []) as any[];
+  const rows: Row[] = fallbackRows.map((r) => ({
+    productId: r?.id || r?.artNr || r?.articleNumber,
+    lange: r?.length || r?.lange,
+    breite: r?.width || r?.breite,
+    hohe: r?.height || r?.hohe,
+    price: r?.price || r?.netPrice,
+  }));
+
+  return { rows, priceUnit: "" };
 }
 
 export default function ProductTable({ product }: { product: any }) {
-  // ✅ këtu tani ids është array objektesh (nga transformProduct)
-  const rows = Array.isArray(product?.ids) ? product.ids : [];
+  const { rows, priceUnit } = getRows(product);
 
-  // 🔴 nëse s’po e sheh këtë tekst, nuk je duke përdor këtë file
-  // (atëherë po renderohet komponent i vjetër diku tjetër)
-  // mundesh me e lan 1 minutë për test
-  // pastaj e heqim
-  const DEBUG = false;
-
-  if (!rows.length) {
+  if (!rows || rows.length === 0) {
     return (
-      <div className="bg-white p-6 text-sm text-gray-500">
-        {DEBUG ? "DEBUG: ProductTable loaded, but no rows." : "No variants found."}
+      <div className="w-full bg-white border border-gray-200 p-6 text-sm text-gray-500">
+        No variants found.
       </div>
     );
   }
 
   return (
-    <div className="w-full bg-white overflow-x-auto border border-gray-200">
-      {DEBUG && (
-        <div className="p-4 bg-red-500 text-white font-bold">
-          ProductTable.tsx LOADED ✅
-        </div>
-      )}
-
-      <table className="min-w-[860px] w-full border-collapse text-sm">
+    <div className="w-full bg-white border border-gray-200 overflow-x-auto">
+      <table className="w-full min-w-[860px] border-collapse text-sm">
         <thead>
-          <tr className="bg-[#1e88d3] text-white">
-            <th className="p-3 text-left border-r border-blue-400">Art.-Nr.</th>
-            <th className="p-3 text-left border-r border-blue-400">Länge mm</th>
-            <th className="p-3 text-left border-r border-blue-400">Breite mm</th>
-            <th className="p-3 text-left border-r border-blue-400">Höhe mm</th>
-            <th className="p-3 text-left">
-              Netto Preis CHF / {safeCell(product?.priceOption || "Meter").toUpperCase()}
+          {/* Header row 1 (DE) */}
+          <tr className="bg-[#1f86d6] text-white">
+            <th className="px-4 py-3 text-left font-semibold">Art.-Nr.</th>
+            <th className="px-4 py-3 text-left font-semibold">Länge mm</th>
+            <th className="px-4 py-3 text-left font-semibold">Breite mm</th>
+            <th className="px-4 py-3 text-left font-semibold">Höhe mm</th>
+            <th className="px-4 py-3 text-left font-semibold">
+              Netto Preis CHF / {priceUnit || "Einheit"}
             </th>
           </tr>
-          <tr className="bg-[#89c4f4] text-white">
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
-              N° d&apos;art
-            </th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
-              Longueur mm
-            </th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
-              Largeur mm
-            </th>
-            <th className="p-2 text-left border-r border-blue-200 text-xs font-normal">
-              Hauteur mm
-            </th>
-            <th className="p-2 text-left text-xs font-normal">
-              Prix net CHF / {safeCell(product?.priceOption || "mètre")}
+
+          {/* Header row 2 (FR) */}
+          <tr className="bg-[#4aa6e6] text-white">
+            <th className="px-4 py-2 text-left text-xs font-medium">N° d&apos;art</th>
+            <th className="px-4 py-2 text-left text-xs font-medium">Longueur mm</th>
+            <th className="px-4 py-2 text-left text-xs font-medium">Largeur mm</th>
+            <th className="px-4 py-2 text-left text-xs font-medium">Hauteur mm</th>
+            <th className="px-4 py-2 text-left text-xs font-medium">
+              Prix net CHF / {priceUnit ? (priceUnit === "M" ? "mètre" : "pièce") : "unité"}
             </th>
           </tr>
         </thead>
 
         <tbody>
-          {rows.map((row: any, i: number) => (
-            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-              <td className="p-3 border-r border-gray-100 font-medium">
-                {safeCell(row?.productId)}
-              </td>
-              <td className="p-3 border-r border-gray-100">{safeCell(row?.lange)}</td>
-              <td className="p-3 border-r border-gray-100">{safeCell(row?.breite)}</td>
-              <td className="p-3 border-r border-gray-100">{safeCell(row?.hohe)}</td>
-              <td className="p-3 font-bold">{priceToText(row?.price)}</td>
+          {rows.map((r, i) => (
+            <tr key={`${r.productId || "row"}-${i}`} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+              <td className="px-4 py-3 font-medium text-[#2d3142]">{r.productId || "-"}</td>
+              <td className="px-4 py-3">{r.lange || "-"}</td>
+              <td className="px-4 py-3">{r.breite || "-"}</td>
+              <td className="px-4 py-3">{r.hohe || "-"}</td>
+              <td className="px-4 py-3 font-semibold">{toMoney(r.price)}</td>
             </tr>
           ))}
         </tbody>
